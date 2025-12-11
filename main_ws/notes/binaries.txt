@@ -1,0 +1,54 @@
+#Notes and important installation instructions:
+#-------------------------------------------------------
+#Install Gazebo:
+sudo apt-get update
+sudo apt-get install curl lsb-release gnupg
+
+sudo curl https://packages.osrfoundation.org/gazebo.gpg --output /usr/share/keyrings/pkgs-osrf-archive-keyring.gpg
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/pkgs-osrf-archive-keyring.gpg] https://packages.osrfoundation.org/gazebo/ubuntu-stable $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/gazebo-stable.list > /dev/null
+sudo apt-get update
+sudo apt-get install ros-${ROS_DISTRO}-ros-gz
+
+#sudo apt-get install gz-harmonic
+
+# Run Gazebo:
+gz sim shapes.sdf  # Fortress uses "ign gazebo" instead of "gz sim"
+
+#Install Turtlebot4 Simulation Packages:
+sudo apt update
+#sudo apt install ros-jazzy-turtlebot4-simulations -y
+sudo apt install ros-jazzy-turtlebot4-simulator ros-jazzy-irobot-create-nodes
+
+#To run:
+ros2 launch turtlebot4_gz_bringup turtlebot4_gz.launch.py
+#Run simulator with localization only, Rviz, and Nav2 (example of using params):
+ros2 launch turtlebot4_gz_bringup turtlebot4_gz.launch.py nav2:=true slam:=false localization:=true rviz:=true
+#---------------------------------------------------------------
+
+#SLAM toolbox: Publishes /map (Occupancy Grid)
+ros2 launch slam_toolbox online_async_launch.py use_sim_time:=true sync:=false params_file:=fast_slam.yaml
+
+
+#Install Nav2 binaries:
+sudo apt install ros-jazzy-navigation2
+sudo apt install ros-jazzy-nav2-bringup
+sudo apt install ros-jazzy-nav2-minimal-tb*
+sudo apt install ros-jazzy-nav2-route #This one is missing from the website
+
+#---------------------------------------------------------------
+#Tools for ROS:
+#Install ROS Commons:
+sudo apt update
+sudo apt install ros-jazzy-turtlebot4-description \
+ros-jazzy-turtlebot4-msgs \
+ros-jazzy-turtlebot4-navigation \
+ros-jazzy-turtlebot4-node
+
+# Teleop keyboard control:
+sudo apt install ros-jazzy-teleop-twist-keyboard
+# To run teleop keyboard with stamped messages:
+ros2 run teleop_twist_keyboard teleop_twist_keyboard --ros-args -p stamped:=true
+
+#---------------------------------------------------------------
+#Install ROS Bridge for web dashboard:
+sudo apt install ros-jazzy-rosbridge-server
