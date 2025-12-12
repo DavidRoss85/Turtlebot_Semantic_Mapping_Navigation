@@ -8,7 +8,7 @@
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 MAIN_WS="$PROJECT_ROOT/main_ws"
-VENV_DIR="$PROJECT_ROOT/venv"
+VENV_DIR="$PROJECT_ROOT/.venv"
 
 echo "[INFO] Script directory: $SCRIPT_DIR"
 echo "[INFO] Project root: $PROJECT_ROOT"

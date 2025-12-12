@@ -23,13 +23,13 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'robo_sync_node = object_location.robo_sync_node:main',
-            'detection_node = object_location.detection_node:main',
-            'distance_node = object_location.distance_node:main',
-            'map_node = object_location.map_node:main',
+            'robo_sync_node = object_location.nodes.robo_sync_node:main',
+            'detection_node = object_location.nodes.detection_node:main',
+            'distance_node = object_location.nodes.distance_node:main',
+            'map_node = object_location.nodes.map_node:main',
             'temp_viewer = object_location.temp_viewer:main',
-            'approach_controller_node = object_location.new_approach_controller_node:main',
-            'navigator_node = object_location.navigator_node:main',
+            'approach_controller_node = object_location.nodes.new_approach_controller_node:main',
+            'navigator_node = object_location.nodes.navigator_node:main',
             'map_visualizer = object_location.map_visualizer:main'
         ],
     },

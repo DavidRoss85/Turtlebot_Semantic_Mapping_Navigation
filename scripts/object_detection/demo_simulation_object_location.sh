@@ -9,16 +9,16 @@ echo "Waiting for simulation to start..."
 sleep 15
 echo "Launching Robosync node in separate terminal..."
 gnome-terminal --working-directory="$PWD" -- bash -c "./launch_robosync_node.sh; exec bash"
-sleep 2
+
 echo "Launching Detection Node..."
 gnome-terminal --working-directory="$PWD" -- bash -c "./launch_detection_node.sh; exec bash"
-sleep 2
+
 echo "Launching Location node..."
 gnome-terminal --working-directory="$PWD" -- bash -c "./launch_location_node.sh; exec bash"
-sleep 2
+
 echo "Launching Mapping node..."
 gnome-terminal --working-directory="$PWD" -- bash -c "./launch_map_node.sh; exec bash"
-sleep 2
+
 echo "Launching viewer..."
 gnome-terminal --working-directory="$PWD" -- bash -c "./launch_map_viewer.sh; exec bash"
 echo "Launching temp viewers..."

@@ -26,7 +26,7 @@ from object_location_interfaces.msg import (
 import cv2      #pip3 install opencv-python
 from cv_bridge import CvBridge
 
-from .helpers import USING_GAZEBO
+from utils.helpers import USING_GAZEBO
 
 class DistanceNode(Node):
     """

@@ -13,7 +13,7 @@ from object_location_interfaces.msg import RoboSync as RSync
 #Testing:
 from geometry_msgs.msg import PoseWithCovarianceStamped
 
-from .helpers import USING_GAZEBO
+from utils.helpers import USING_GAZEBO
 
 class RoboSyncNode(Node):
 
