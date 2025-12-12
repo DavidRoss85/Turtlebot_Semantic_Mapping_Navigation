@@ -3,7 +3,7 @@ import math
 import numpy as np
 from scipy.ndimage import binary_dilation
 
-USING_GAZEBO = False
+USING_GAZEBO = True
 
 OPEN_CELL_THRESHOLD = 50
 A_STAR_HEAVY_WEIGHT = 5
@@ -300,6 +300,30 @@ def inflate_gaussian_multiclass(
                         inflated[ii, jj] = base_class + min(new_fraction, 0.9999)
 
     return inflated
+
+#----------------------------------------------------------------------------------
+def fetch_origin_and_resolution(map_info):
+
+    origin_x = map_info.origin.position.x
+    origin_y = map_info.origin.position.y
+    resolution = map_info.resolution
+    return [origin_x,origin_y,resolution]
+#----------------------------------------------------------------------------------
+def convert_world_to_grid( x, y, map_info):
+    
+    origin_x, origin_y, resolution = fetch_origin_and_resolution(map_info)
+
+    i = round((y - origin_y) / resolution)  # row
+    j = round((x - origin_x) / resolution)  # col
+
+    return [i,j]
+#----------------------------------------------------------------------------------   
+def convert_grid_to_world(i, j, map):
+    origin_x, origin_y, resolution = fetch_origin_and_resolution(map)
+
+    x = origin_x + j * resolution
+    y = origin_y + i * resolution
+    return [x, y]
 
 #-------------------------------------------------------------------
 YOLO_CLASSES = [
