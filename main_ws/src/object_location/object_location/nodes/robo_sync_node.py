@@ -13,7 +13,7 @@ from object_location_interfaces.msg import RoboSync as RSync
 #Testing:
 from geometry_msgs.msg import PoseWithCovarianceStamped
 
-from utils.helpers import USING_GAZEBO
+from object_location.utils.helpers import USING_GAZEBO
 
 class RoboSyncNode(Node):
 
@@ -47,6 +47,7 @@ class RoboSyncNode(Node):
         self.__simulated_lag_time = self.DEFAULT_SIMULATE_LAG_TIME
         self.__last_error_message = ['','', 0] # [function, message, counter]
         self.__last_log_message = ['','',0]
+        self.__last_screen_message = ['','',0]
         
         self.__load_parameters()
 
@@ -95,11 +96,11 @@ class RoboSyncNode(Node):
             
             self.get_logger().info('RoboSync Node initialized and ready.')
         except Exception as e:
-            self.__last_error_message = self.__handle_error(
+            self.__last_screen_message = self.__handle_error(
                 e,
                 '__init__()',
                 'Failed to initialize RoboSync Node.',
-                self.__last_error_message
+                self.__last_screen_message
             )
             self.destroy_node()
     #----------------------------------------------------------------------------------
@@ -133,10 +134,10 @@ class RoboSyncNode(Node):
         # When perfected, should publish only when all three messages are available
         if self.__simulated_lag_time <= 0:
             self.__pub.publish(sync_msg)
-            self.__last_log_message = self.get_logger().info(
+            self.__last_screen_message = self.__log_message(
                 'Published synchronized message.',
                 '',
-                self.__last_log_message
+                self.__last_screen_message
             )
         else:
             self.__msg_queue.append(sync_msg)
@@ -145,10 +146,10 @@ class RoboSyncNode(Node):
         # Simulates a delayed message
         if len(self.__msg_queue) > 0:
             self.__pub.publish(self.__msg_queue.pop(0))
-            self.__last_log_message = self.__log_message(
+            self.__last_screen_message = self.__log_message(
                 'Published delayed synchronized message.',
                 '',
-                self.__last_log_message
+                self.__last_screen_message
             )
 
     #----------------------------------------------------------------------------------
@@ -158,27 +159,27 @@ class RoboSyncNode(Node):
             trans = self.__tf_buffer.lookup_transform('map', 'base_link', rclpy.time.Time())
             self.__robot_pose = trans
         except Exception as e:
-            self.__last_error_message = self.__handle_error(
+            self.__last_screen_message = self.__handle_error(
                 e,
                 '__get_robot_pose()',
                 'Error performing transform', 
-                self.__last_error_message
+                self.__last_screen_message
             )
 
             
     #----------------------------------------------------------------------------------
-    def __handle_error(self, error, function_name, custom_message='', last_message =['','',0]):
+    def __handle_error(self, error, function_name, custom_message='', last_message=None):
         """ Handles all errors and error logging"""
         
         if last_message is None: last_message = ['','',0]   # Null check
 
-        prev_function, prev_message, counter = last_message   #unpack last message 
+        prev_message, prev_function, counter = last_message   #unpack last message 
 
         if prev_function == function_name and\
             prev_message == custom_message:
              
             counter+=1
-            print(f'\r x {counter}',end='')
+            print(f'\r x {counter}\t',end='',flush=True)
         
         else:
             print(f'\n')
@@ -186,16 +187,17 @@ class RoboSyncNode(Node):
             counter = 0
 
 
-        return [function_name , custom_message, counter]
+        return [custom_message,function_name, counter]
     #----------------------------------------------------------------------------------
-    def __log_message(self, message, message_type='', last_log_message=['','',0]):
+    def __log_message(self, message, message_type=None, last_log_message=None):
         """Handles displaying messages and logging"""
         if last_log_message is None: last_log_message = ['','',0]
         if message_type is None: message_type = ''
         
         prev_message, prev_type, counter = last_log_message
         if prev_type == message_type and prev_message == message:
-            print(f'\r x {counter}',end='')
+            counter +=1
+            print(f'\r x {counter}\t',end='',flush=True)
         else:
             print(f'\n')
             self.get_logger().info(message)
