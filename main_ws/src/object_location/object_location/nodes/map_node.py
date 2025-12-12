@@ -22,7 +22,7 @@ import math
 import numpy as np
 import matplotlib.pyplot as plt
 
-from utils.helpers import (
+from object_location.utils.helpers import (
     find_a_star_path, quaternion_to_yaw, 
     inflate_obstacles, inflate_obstacles2, inflate_gaussian_multiclass,
     transform_2d

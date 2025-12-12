@@ -17,7 +17,7 @@ import math
 import numpy as np
 import matplotlib.pyplot as plt
 
-from .utils.helpers import find_a_star_path, quaternion_to_yaw, inflate_obstacles,transform_2d, YOLO_CLASSES
+from object_location.utils.helpers import find_a_star_path, quaternion_to_yaw, inflate_obstacles,transform_2d, YOLO_CLASSES
 import cv2
 from cv_bridge import CvBridge
 
