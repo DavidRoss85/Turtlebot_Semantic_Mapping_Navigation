@@ -134,11 +134,11 @@ class RoboSyncNode(Node):
         # When perfected, should publish only when all three messages are available
         if self.__simulated_lag_time <= 0:
             self.__pub.publish(sync_msg)
-            self.__last_screen_message = self.__log_message(
-                'Published synchronized message.',
-                '',
-                self.__last_screen_message
-            )
+            # self.__last_screen_message = self.__log_message(
+            #     'Published synchronized message.',
+            #     '',
+            #     self.__last_screen_message
+            # )
         else:
             self.__msg_queue.append(sync_msg)
     #----------------------------------------------------------------------------------
