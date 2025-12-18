@@ -29,14 +29,17 @@ from object_location.utils.helpers import (
 )
 import cv2
 
+# Configurations:
+from object_location.config.ros_presets import STD_CFG
+
 class MapGenerator(Node):
     # Default values:
-    DEFAULT_OCCUPANCY_SUB_TOPIC = '/map'
-    DEFAULT_LOCATIONS_SUB_TOPIC = '/objects/locations'
-    DEFAULT_OVERLAY_PUBLISH_TOPIC = '/grid/overlay'
-    DEFAULT_OCCUPANCY_PUBLISH_TOPIC = '/grid/occupancy'
-    DEFAULT_NAVIGATION_PUBLISH_TOPIC = '/grid/navigation'
-    MAX_MSG = 10
+    # DEFAULT_OCCUPANCY_SUB_TOPIC = '/map'
+    # DEFAULT_LOCATIONS_SUB_TOPIC = '/objects/locations'
+    # DEFAULT_OVERLAY_PUBLISH_TOPIC = '/grid/overlay'
+    # DEFAULT_OCCUPANCY_PUBLISH_TOPIC = '/grid/occupancy'
+    # DEFAULT_NAVIGATION_PUBLISH_TOPIC = '/grid/navigation'
+    # MAX_MSG = 10
     
     DEFAULT_ROBOT_WIDTH_METERS = 0.36
     DEFAULT_ROBOT_POSE_QUATERNION = [0,0,0,[0,0,0,0]]
@@ -49,14 +52,16 @@ class MapGenerator(Node):
     #----------------------------------------------------------------------------------
     def __init__(self):
         super().__init__('map_node')
-        self.__grid_sub_topic = self.DEFAULT_OCCUPANCY_SUB_TOPIC
-        self.__locations_sub_topic = self.DEFAULT_LOCATIONS_SUB_TOPIC
+        # self.__grid_sub_topic = self.DEFAULT_OCCUPANCY_SUB_TOPIC
+        # self.__locations_sub_topic = self.DEFAULT_LOCATIONS_SUB_TOPIC
 
-        self.__overlay_map_topic = self.DEFAULT_OVERLAY_PUBLISH_TOPIC
-        self.__occupancy_map_topic = self.DEFAULT_OCCUPANCY_PUBLISH_TOPIC
-        self.__navigation_map_topic = self.DEFAULT_NAVIGATION_PUBLISH_TOPIC
+        # self.__overlay_map_topic = self.DEFAULT_OVERLAY_PUBLISH_TOPIC
+        # self.__occupancy_map_topic = self.DEFAULT_OCCUPANCY_PUBLISH_TOPIC
+        # self.__navigation_map_topic = self.DEFAULT_NAVIGATION_PUBLISH_TOPIC
 
-        self.__max_msg = self.MAX_MSG
+        # self.__max_msg = self.MAX_MSG
+
+        self.__ros_config = STD_CFG
 
         self.__map_data = None
         self.__map_info = None
@@ -79,33 +84,33 @@ class MapGenerator(Node):
 
         self.__locations_subscriber = self.create_subscription(
             RSyncLocationList,
-            self.__locations_sub_topic,
+            self.__ros_config.object_br_topic,
             self.__interpret_locations,
-            self.__max_msg
+            self.__ros_config.max_messages
         )
         
         self.__grid_subscriber = self.create_subscription(
             OccupancyGrid,
-            self.__grid_sub_topic,
+            self.__ros_config.occupancy_grid_topic,
             self.__interpret_occupancy_grid,
-            self.__max_msg
+            self.__ros_config.max_messages
         )
 
         # Publishers
         self.__overlay_publisher = self.create_publisher(
             OccupancyGrid,
-            self.__overlay_map_topic,
-            self.__max_msg
+            self.__ros_config.object_overlay_topic,
+            self.__ros_config.max_messages
         )
         self.__occupancy_publisher = self.create_publisher(
             OccupancyGrid,
-            self.__occupancy_map_topic,
-            self.__max_msg
+            self.__ros_config.grid_repub_topic,
+            self.__ros_config.max_messages
         )
         self.__navigation_publisher = self.create_publisher(
             OccupancyGrid,
-            self.__navigation_map_topic,
-            self.__max_msg
+            self.__ros_config.navigation_grid_topic,
+            self.__ros_config.max_messages
         )
 
         # TF2 Buffer and Listener for robot pose

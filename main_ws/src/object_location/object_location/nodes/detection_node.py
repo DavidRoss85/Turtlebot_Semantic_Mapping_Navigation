@@ -23,14 +23,17 @@ from ultralytics import YOLO #pip3 install typeguard ultralytics
 #Ultralytics glitch when attempting to build. Use export to ensure proper import:
 # export PYTHONPATH=</path/to/your/virtual/environment>/lib/python3.12/site-packages:$PYTHONPATH
 
+# Configurations:
+from object_location.config.ros_presets import STD_CFG
+
 class DetectionNode(Node):
 
     # Class Constants:
 
     # ROS2
-    DEFAULT_SYNC_TOPIC = '/sync/robot/state'
-    DEFAULT_PUBLISH_TOPIC = '/objects/detections'
-    MAX_MSG = 10
+    # DEFAULT_SYNC_TOPIC = '/sync/robot/state'
+    # DEFAULT_PUBLISH_TOPIC = '/objects/detections'
+    # MAX_MSG = 10
 
     # YOLO
     YOLO_MODEL_LIST = ['yolov8n.pt', 'yolov8s.pt', 'yolov8m.pt']
@@ -56,11 +59,14 @@ class DetectionNode(Node):
         self.get_logger().info('Initializing Detection Node...')
 
         #Variables:
+        self.__ros_config = STD_CFG
+
         self.__model_name = self.DEFAULT_YOLO_MODEL_PATH
         self.__image_encoding = self.DEFAULT_IMAGE_ENCODING
-        self.__sync_topic = self.DEFAULT_SYNC_TOPIC
-        self.__publish_topic = self.DEFAULT_PUBLISH_TOPIC
-        self.__max_msg = self.MAX_MSG
+        
+        # self.__sync_topic = self.DEFAULT_SYNC_TOPIC
+        # self.__publish_topic = self.DEFAULT_PUBLISH_TOPIC
+        # self.__max_msg = self.MAX_MSG
 
         self.__bgr_font_color = self.DEFAULT_BGR_FONT_COLOR
         self.__bgr_box_color = self.DEFAULT_BGR_BOX_COLOR
@@ -91,19 +97,19 @@ class DetectionNode(Node):
             # Subscriber
             self.__rsync_sub = self.create_subscription(
                 RSync,
-                self.__sync_topic,
+                self.__ros_config.sync_topic,
                 self.__process_detections,
-                self.__max_msg
+                self.__ros_config.max_messages
             )
-            self.get_logger().info(f'Subscribed to sync topic: {self.__sync_topic}')
+            self.get_logger().info(f'Subscribed to sync topic: {self.__ros_config.sync_topic}')
 
             # Publisher
             self.__detection_pub = self.create_publisher(
                 RSyncDetectionList,
-                self.__publish_topic,
+                self.__ros_config.detections_topic,
                 10
             )
-            self.get_logger().info(f'Publisher created on topic: {self.__publish_topic}')
+            self.get_logger().info(f'Publisher created on topic: {self.__ros_config.detections_topic}')
 
             self.get_logger().info('Detection Node initialized and ready.')
         except Exception as e:

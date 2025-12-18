@@ -26,7 +26,9 @@ from object_location_interfaces.msg import (
 import cv2      #pip3 install opencv-python
 from cv_bridge import CvBridge
 
+# Configureations
 from object_location.utils.helpers import USING_GAZEBO
+from object_location.config.ros_presets import SIM_CFG, STD_CFG
 
 class DistanceNode(Node):
     """
@@ -38,11 +40,6 @@ class DistanceNode(Node):
     """
 
     DEFAULT_USING_GAZEBO = USING_GAZEBO
-
-    # Default ROS topic names and settings
-    DEFAULT_PUBLISH_TOPIC = '/objects/locations'
-    DEFAULT_DETECTIONS_TOPIC = '/objects/detections'
-    MAX_MSG = 10
 
     # Image + depth settings
     DEFAULT_IMAGE_ENCODING = 'passthrough'
@@ -67,10 +64,13 @@ class DistanceNode(Node):
         super().__init__('distance_node')
         self.get_logger().info('Initializing Distance Node')
 
+        # self.__detections_topic = self.DEFAULT_DETECTIONS_TOPIC
+        # self.__locations_topic = self.DEFAULT_PUBLISH_TOPIC
+        # self.__max_msg = self.MAX_MSG
+
+
+
         # Local configuration variables
-        self.__detections_topic = self.DEFAULT_DETECTIONS_TOPIC
-        self.__locations_topic = self.DEFAULT_PUBLISH_TOPIC
-        self.__max_msg = self.MAX_MSG
         self.__camera_width_res = self.DEFAULT_CAMERA_PIXEL_WIDTH         # Width in pixels of the image used for yaw calculation
         self.__camera_angle_width = self.DEFAULT_CAMERA_FOV_ANGLE        # Horizontal field of view of the camera (degrees)
         self.__image_encoding = self.DEFAULT_IMAGE_ENCODING
@@ -80,6 +80,10 @@ class DistanceNode(Node):
         self.__show_image = self.DEFAULT_SHOW_DEPTH                                       # Option to display depth image window
         self.__depth_factor = self.METER_DEPTH_FACTOR if self.__using_gazebo else self.MM_DEPTH_FACTOR
         self.__depth_calculation_method = 'center'   # Options: 'center' or 'closest' (within bounding box)
+        
+
+        self.__ros_config = SIM_CFG if self.__using_gazebo else STD_CFG     # Stores ROS topics and settings
+
 
         # Placeholder for parameter server imports
         self.__load_parameters()
@@ -92,19 +96,19 @@ class DistanceNode(Node):
             # Subscribe to detection messages that include YOLO bounding boxes + synchronized depth image
             self.__detection_sub = self.create_subscription(
                 RSyncDetectionList,
-                self.__detections_topic,
+                self.__ros_config.detections_topic,
                 self.__process_detections,
-                self.__max_msg
+                self.__ros_config.max_messages
             )
-            self.get_logger().info(f'Subscribed to detection topic: {self.__detections_topic}')
+            self.get_logger().info(f'Subscribed to detection topic: {self.__ros_config.detections_topic}')
 
             # Publisher that outputs distance/yaw for each detected object
             self.__locations_pub = self.create_publisher(
                 RSyncLocationList,
-                self.__locations_topic,
-                self.__max_msg
+                self.__ros_config.object_br_topic,
+                self.__ros_config.max_messages
             )
-            self.get_logger().info(f'Publisher created on topic: {self.__locations_topic}')
+            self.get_logger().info(f'Publisher created on topic: {self.__ros_config.object_br_topic}')
 
             self.get_logger().info('Successfully initialized Distance Node.')
 
