@@ -27,18 +27,18 @@ from dataclasses import dataclass
 # Data class for ros configurations
 @dataclass(frozen=True)
 class RosConfig:
-    max_messages: int = 10
-    sync_slop = 0.1
     rgb_topic: str
     depth_topic: str
-    detections_topic: str = TopicKey.DETECTIONS
-    object_br_topic: str = TopicKey.OBJECT_BR
-    sync_topic: str = TopicKey.SYNC
-    occupancy_grid_topic = TopicKey.OCCUPANCY_GRID
-    grid_repub_topic = TopicKey.GRID_REPUBLISH
-    navigation_grid_topic = TopicKey.NAVIGATION_GRID
-    object_overlay_topic = TopicKey.OBJECT_OVERLAY
-    navigation_goal_topic = TopicKey.NAVIGATION_GOAL
-    velocity_topic = TopicKey.CMD_VEL
-    mission_state_topic = TopicKey.MISSION_STATE
-    mission_status_topic = TopicKey.MISSION_STATUS
+    max_messages: int = 10
+    sync_slop = 0.1
+    detections_topic: str = TopicKey.DETECTIONS.value
+    object_br_topic: str = TopicKey.OBJECT_BR.value
+    sync_topic: str = TopicKey.SYNC.value
+    occupancy_grid_topic = TopicKey.OCCUPANCY_GRID.value
+    grid_repub_topic = TopicKey.GRID_REPUBLISH.value
+    navigation_grid_topic = TopicKey.NAVIGATION_GRID.value
+    object_overlay_topic = TopicKey.OBJECT_OVERLAY.value
+    navigation_goal_topic = TopicKey.NAVIGATION_GOAL.value
+    velocity_topic = TopicKey.CMD_VEL.value
+    mission_state_topic = TopicKey.MISSION_STATE.value
+    mission_status_topic = TopicKey.MISSION_STATUS.value
