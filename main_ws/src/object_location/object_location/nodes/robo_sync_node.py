@@ -13,20 +13,22 @@ from object_location_interfaces.msg import RoboSync as RSync
 #Testing:
 from geometry_msgs.msg import PoseWithCovarianceStamped
 
+# Configurations:
 from object_location.utils.helpers import USING_GAZEBO
+from object_location.config.ros_presets import STD_CFG, SIM_CFG
 
 class RoboSyncNode(Node):
 
     #Class Constants
     DEFAULT_USING_GAZEBO = USING_GAZEBO
-    DEFAULT_IMAGE_TOPIC = '/oakd/rgb/preview/image_raw'
-    DEFAULT_DEPTH_TOPIC = '/oakd/stereo/image_raw'
-    DEFAULT_DEPTH_TOPIC_GAZEBO = '/oakd/rgb/preview/depth'
-    DEFAULT_DYNAMIC_TRANSFORM_TOPIC = '/tf'
-    DEFAULT_STATIC_TRANSFORM_TOPIC = '/tf_static'
-    DEFAULT_PUBLISH_TOPIC = '/sync/robot/state'
-    MAX_MSG = 10
-    DEFAULT_SLOP = 0.1
+    # DEFAULT_IMAGE_TOPIC = '/oakd/rgb/preview/image_raw'
+    # DEFAULT_DEPTH_TOPIC = '/oakd/stereo/image_raw'
+    # DEFAULT_DEPTH_TOPIC_GAZEBO = '/oakd/rgb/preview/depth'
+    # DEFAULT_DYNAMIC_TRANSFORM_TOPIC = '/tf'
+    # DEFAULT_STATIC_TRANSFORM_TOPIC = '/tf_static'
+    # DEFAULT_PUBLISH_TOPIC = '/sync/robot/state'
+    # MAX_MSG = 10
+    # DEFAULT_SLOP = 0.1
     DEFAULT_SIMULATE_FRAME_LOSS = 0 #frames
     DEFAULT_SIMULATE_LAG_TIME = 0   # seconds
 
@@ -38,11 +40,14 @@ class RoboSyncNode(Node):
         self.__rgb_image = None
         self.__depth_image = None
         self.__robot_pose = None
-        self.__image_topic = self.DEFAULT_IMAGE_TOPIC
-        self.__depth_topic = self.DEFAULT_DEPTH_TOPIC if not self.DEFAULT_USING_GAZEBO else self.DEFAULT_DEPTH_TOPIC_GAZEBO
-        self.__publish_topic = self.DEFAULT_PUBLISH_TOPIC
-        self.__max_msg = self.MAX_MSG
-        self.__slop = self.DEFAULT_SLOP
+
+        self.__ros_config = SIM_CFG if USING_GAZEBO else STD_CFG
+        # self.__image_topic = self.DEFAULT_IMAGE_TOPIC
+        # self.__depth_topic = self.DEFAULT_DEPTH_TOPIC if not self.DEFAULT_USING_GAZEBO else self.DEFAULT_DEPTH_TOPIC_GAZEBO
+        # self.__publish_topic = self.DEFAULT_PUBLISH_TOPIC
+        # self.__max_msg = self.MAX_MSG
+        # self.__slop = self.DEFAULT_SLOP
+        
         self.__simulate_frame_loss = self.DEFAULT_SIMULATE_FRAME_LOSS
         self.__simulated_lag_time = self.DEFAULT_SIMULATE_LAG_TIME
         self.__last_error_message = ['','', 0] # [function, message, counter]
@@ -63,11 +68,11 @@ class RoboSyncNode(Node):
         
         try:
             # Subscribers
-            self.__image_sub = Subscriber(self, Image, self.__image_topic)
-            self.get_logger().info(f'Subscribed to RGB Image topic: {self.__image_topic}')
+            self.__image_sub = Subscriber(self, Image, self.__ros_config.rgb_topic)
+            self.get_logger().info(f'Subscribed to RGB Image topic: {self.__ros_config.rgb_topic}')
             
-            self.__depth_sub = Subscriber(self, Image, self.__depth_topic)
-            self.get_logger().info(f'Subscribed to Depth Image topic: {self.__depth_topic}')
+            self.__depth_sub = Subscriber(self, Image, self.__ros_config.depth_topic)
+            self.get_logger().info(f'Subscribed to Depth Image topic: {self.__ros_config.depth_topic}')
             
             # TF2 Buffer and Listener
             self.__tf_buffer = Buffer()
@@ -77,8 +82,8 @@ class RoboSyncNode(Node):
             # Synchronizer
             self.__sync = ApproximateTimeSynchronizer(
                 [self.__image_sub, self.__depth_sub],
-                queue_size=self.__max_msg,
-                slop=self.__slop
+                queue_size=self.__ros_config.max_messages,
+                slop=self.__ros_config.sync_slop
             )
             self.get_logger().info('ApproximateTimeSynchronizer initialized.')
             self.__sync.registerCallback(self.__sync_callback)
@@ -87,12 +92,12 @@ class RoboSyncNode(Node):
             # Publisher
             self.__pub = self.create_publisher(
                 RSync,
-                self.__publish_topic,
-                self.__max_msg
+                self.__ros_config.sync_topic,
+                self.__ros_config.max_messages
             )
 
 
-            self.get_logger().info(f'Publisher created on topic: {self.__publish_topic}')
+            self.get_logger().info(f'Publisher created on topic: {self.__ros_config.sync_topic}')
             
             self.get_logger().info('RoboSync Node initialized and ready.')
         except Exception as e:

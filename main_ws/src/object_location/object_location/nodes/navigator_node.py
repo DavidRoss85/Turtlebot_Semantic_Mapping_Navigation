@@ -11,11 +11,11 @@ from geometry_msgs.msg import  PoseStamped,Pose2D
 from turtlebot4_navigation.turtlebot4_navigator import TurtleBot4Directions, TurtleBot4Navigator
 
 
-
+# Configurations:
+from object_location.config.ros_presets import STD_CFG
 
 class NavigatorSetupNode(Node):
 
-    DEFAULT_GOAL_TOPIC = '/navigate/goal'
     def __init__(self):
         super().__init__('navigator_setup_node')
         self.get_logger().info('Initializing Navigator Setup Node...')
@@ -24,22 +24,18 @@ class NavigatorSetupNode(Node):
         self.__initial_y = 0.1
         self.__initial_yaw = 0
         self.__initialized = False
-        self.__qos = 10
         self.__navigating = False
 
-        # # TF2 Buffer and Listener
-        # self.__tf_buffer = Buffer()
-        # self.__tf_listener = TransformListener(self.__tf_buffer, self)
-        # self.get_logger().info('TF2 Listener initialized.')
+        self.__ros_config = STD_CFG
 
         self.__navigator = TurtleBot4Navigator()
 
         # Subscribe to goal topic
         self.__goal_subscription = self.create_subscription(
             Pose2D,
-            self.DEFAULT_GOAL_TOPIC,
+            self.__ros_config.navigation_goal_topic,
             self.__goal_received_callback,
-            self.__qos
+            self.__ros_config.max_messages
         )
         self.__initialize()
     #-----------------------------------------------------------------------------

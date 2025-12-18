@@ -15,13 +15,16 @@ from object_location.utils.helpers import (
     fetch_origin_and_resolution
 )
 
+# Configurations:
+from object_location.config.ros_presets import STD_CFG
+
 class MapVisualizerNode(Node):
 
-    DEFAULT_MAP_TOPIC = '/grid/navigation'
-    DEFAULT_OVERLAY_TOPIC = '/grid/overlay'
-    DEFAULT_NAVIGATE_TOPIC = '/navigate/goal'
+    # DEFAULT_MAP_TOPIC = '/grid/navigation'
+    # DEFAULT_OVERLAY_TOPIC = '/grid/overlay'
+    # DEFAULT_NAVIGATE_TOPIC = '/navigate/goal'
+    # DEFAULT_QOS = 10
 
-    DEFAULT_QOS = 10
     DEFAULT_UPDATE_INTERVAL = 0.5
     DEFAULT_OBJECT_OFFSET = 101
     DEFAULT_FONT = cv2.FONT_HERSHEY_SIMPLEX
@@ -46,10 +49,12 @@ class MapVisualizerNode(Node):
         self.get_logger().info('Initializing map visualizer')
         self.get_logger().info('Setting defaults')
         
-        self.__qos = self.DEFAULT_QOS
-        self.__map_topic = self.DEFAULT_MAP_TOPIC
-        self.__overlay_topic = self.DEFAULT_OVERLAY_TOPIC
-        self.__navigate_topic = self.DEFAULT_NAVIGATE_TOPIC
+        # self.__qos = self.DEFAULT_QOS
+        # self.__map_topic = self.DEFAULT_MAP_TOPIC
+        # self.__overlay_topic = self.DEFAULT_OVERLAY_TOPIC
+        # self.__navigate_topic = self.DEFAULT_NAVIGATE_TOPIC
+
+        self.__ros_config = STD_CFG
 
         self.__update_interval = self.DEFAULT_UPDATE_INTERVAL
         self.__yolo_classes = YOLO_CLASSES  # YOLO class names
@@ -84,22 +89,22 @@ class MapVisualizerNode(Node):
         
         self.__map_subscription = self.create_subscription(
             OccupancyGrid,
-            self.__map_topic,
+            self.__ros_config.navigation_grid_topic,
             self.path_callback,
-            self.__qos
+            self.__ros_config.max_messages
         )
         self.__overlay_subscription = self.create_subscription(
             OccupancyGrid,
-            self.__overlay_topic,
+            self.__ros_config.object_overlay_topic,
             self.overlay_callback,
-            self.__qos
+            self.__ros_config.max_messages
         )
 
         # Publisher for navigation
         self.__goal_publisher = self.create_publisher(
             Pose2D,
-            self.__navigate_topic,
-            self.__qos
+            self.__ros_config.navigation_goal_topic,
+            self.__ros_config.max_messages
         )
         
         

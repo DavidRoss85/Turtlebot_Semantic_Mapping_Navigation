@@ -16,6 +16,11 @@ class TopicKey(Enum):
     GRID_REPUBLISH = '/grid/occupancy'
     NAVIGATION_GRID = '/grid/navigation'
     NAVIGATION_GOAL = '/navigate/goal'
+    CMD_VEL = '/cmd_vel'
+    MISSION_STATE = '/mission/state'
+    MISSION_STATUS = '/visual_servo/status'
+    DYNAMIC_TRANSFORM = '/tf'
+    STATIC_TRANSFORM = '/tf_static'
 
 from dataclasses import dataclass
 
@@ -23,6 +28,7 @@ from dataclasses import dataclass
 @dataclass(frozen=True)
 class RosConfig:
     max_messages: int = 10
+    sync_slop = 0.1
     rgb_topic: str
     depth_topic: str
     detections_topic: str = TopicKey.DETECTIONS
@@ -33,3 +39,6 @@ class RosConfig:
     navigation_grid_topic = TopicKey.NAVIGATION_GRID
     object_overlay_topic = TopicKey.OBJECT_OVERLAY
     navigation_goal_topic = TopicKey.NAVIGATION_GOAL
+    velocity_topic = TopicKey.CMD_VEL
+    mission_state_topic = TopicKey.MISSION_STATE
+    mission_status_topic = TopicKey.MISSION_STATUS

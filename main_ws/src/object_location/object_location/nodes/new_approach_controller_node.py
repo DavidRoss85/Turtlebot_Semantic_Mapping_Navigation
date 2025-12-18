@@ -15,6 +15,8 @@ from object_location_interfaces.msg import(
   RSyncLocationList  
 ) 
 
+# Configuration presets:
+from object_location.config.ros_presets import STD_CFG
 
 class ApproachControllerNode(Node):
 
@@ -34,11 +36,12 @@ class ApproachControllerNode(Node):
         self.get_logger().info('Initializing Approach Controller Node...')
 
         # ROS2 settings
-        self.__qos = 10
-        self.__location_topic = '/objects/locations'
-        self.__velocity_topic = '/cmd_vel'
-        self.__mission_topic = '/mission/state'
-        self.__status_topic = '/visual_servo/status'
+        self.__ros_config = STD_CFG
+        # self.__qos = 10
+        # self.__location_topic = '/objects/locations'
+        # self.__velocity_topic = '/cmd_vel'
+        # self.__mission_topic = '/mission/state'
+        # self.__status_topic = '/visual_servo/status'
 
         # location data
         self.__target_item_id = 'bottle'  # Example target item ID
@@ -69,28 +72,28 @@ class ApproachControllerNode(Node):
         # Subscribe to location topic
         self.__location_subscription = self.create_subscription(
             RSyncLocationList,
-            self.__location_topic,
+            self.__ros_config.object_br_topic,
             self.__location_received_callback,
-            self.__qos
+            self.__ros_config.max_messages
         )
         # Subscribe to mission state topic
         self.__mission_sub = self.create_subscription(
             String,
-            self.__mission_topic,
+            self.__ros_config.mission_state_topic,
             self.__mission_callback,
-            self.__qos
+            self.__ros_config.max_messages
         )
         # Publish velocity topic
         self.__velocity_publisher = self.create_publisher(
             TwistStamped,
-            self.__velocity_topic,
-            self.__qos
+            self.__ros_config.velocity_topic,
+            self.__ros_config.max_messages
         )
         # Publish status topic
         self.__status_pub = self.create_publisher(
             String,
-            self.__status_topic,
-            self.__qos
+            self.__ros_config.mission_status_topic,
+            self.__ros_config.max_messages
         )
         
         
