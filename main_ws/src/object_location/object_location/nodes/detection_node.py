@@ -236,7 +236,7 @@ class DetectionNode(Node):
             text,
             (x,y),
             font,
-            self._font_scale,
+            self._detection_config.font_scale,
             bgr,
             thickness=thickness,
             lineType=cv2.LINE_AA

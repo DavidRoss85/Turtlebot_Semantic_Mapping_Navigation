@@ -44,7 +44,7 @@ class ApproachControllerNode(Node):
         # self.__status_topic = '/visual_servo/status'
 
         # location data
-        self.__target_item_id = 'bottle'  # Example target item ID
+        self.__target_item_id = 'person'  # Example target item ID
         self.__timer_inerval = 0.1  # seconds
         self.__fast_approach_speed = 1.0  # m/s
         self.__slow_approach_speed = 0.1  # m/s
@@ -58,7 +58,7 @@ class ApproachControllerNode(Node):
         self.__dead_reckoning_distance = 0.8  # meters
         self.__angular_tolerance = np.deg2rad(10.0)  # radians
 
-        self.__begin_approach = False
+        self.__begin_approach = True
         self.__fast_approach = True
         self.__last_sensor_reading_time = None
         self.__target_info = None
