@@ -37,11 +37,6 @@ class ApproachControllerNode(Node):
 
         # ROS2 settings
         self.__ros_config = STD_CFG
-        # self.__qos = 10
-        # self.__location_topic = '/objects/locations'
-        # self.__velocity_topic = '/cmd_vel'
-        # self.__mission_topic = '/mission/state'
-        # self.__status_topic = '/visual_servo/status'
 
         # location data
         self.__target_item_id = 'person'  # Example target item ID
@@ -99,6 +94,7 @@ class ApproachControllerNode(Node):
         
         self.__control_timer = self.create_timer(self.__timer_inerval, self.__control_loop)
 
+    #--------------------------------------------------------------------------
     def __location_received_callback(self, msg: RSyncLocationList):
         """Callback function for location topic subscription"""
 
@@ -132,6 +128,7 @@ class ApproachControllerNode(Node):
         stop_msg.twist.angular.z = 0.0
         self.__velocity_publisher.publish(stop_msg)
 
+    #--------------------------------------------------------------------------
     def __reset_variables(self):
         """Reset internal state variables"""
         self.__fast_approach = True
@@ -141,6 +138,7 @@ class ApproachControllerNode(Node):
         self.__last_target_info = None
         self.__last_reckoning_update_time = None
         self.__locked_target = False
+
     #--------------------------------------------------------------------------
     def __goal_reached(self):
         """Handle actions when goal is reached"""
@@ -158,7 +156,9 @@ class ApproachControllerNode(Node):
         self.__target_info = target
         current_time = self.get_clock().now()
 
-        predicted_distance = target.distance
+        predicted_distance = target.distance    # Initialize with actual distance
+
+        # If we have a previous target and sensor reading time, predict distance
         if self.__last_target_info is not None and self.__last_sensor_reading_time is not None:
             predicted_distance = self.__predict_distance(
                 self.__last_target_info.distance,
@@ -166,12 +166,14 @@ class ApproachControllerNode(Node):
                 current_time
             )
 
+        # Apply alpha filter to smooth the distance
         filtered_distance = self.__apply_alpha_filter(
             predicted_distance,
             target.distance,
             alpha=self.__filter_alpha
         )
 
+        # Update target distance with filtered value
         target.distance = filtered_distance
 
         if target.distance > self.__dead_reckoning_distance and not self.__locked_target:
