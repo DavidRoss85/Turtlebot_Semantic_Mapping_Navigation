@@ -51,6 +51,9 @@ fi
 echo "[INFO] Installing additional Python packages (typeguard, ultralytics, opencv-python, scipy, message-filters)..."
 
 "$VENV_DIR/bin/pip" install \
+    torch \
+    torchvision \
+    torchaudio \
     typeguard \
     ultralytics \
     opencv-python \
