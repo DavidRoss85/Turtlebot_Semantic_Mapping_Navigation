@@ -26,6 +26,7 @@ from ultralytics import YOLO #pip3 install typeguard ultralytics
 
 # Configurations:
 from object_location.config.ros_presets import STD_CFG
+from object_location.config.detection_presets import DEFAULT_DETECTION_CONFIG
 from object_location.config.yolo_presets import(
     DEFAULT_YOLO_CONFIG, 
     ComputePreference as CPU_Mode,
@@ -35,36 +36,15 @@ from object_location.config.yolo_presets import(
 
 class DetectionNode(Node):
 
-    # Class Constants:
-
-    #OpenCV
-    DEFAULT_IMAGE_ENCODING = 'passthrough'#'bgr8'  # OpenCV uses BGR format
-
-    # Default values:
-    DEFAULT_FEED_SHOW = False
-    DEFAULT_SHOULD_PUBLISH = True
-    DEFAULT_LINE_THICKNESS = 2
-    DEFAULT_FONT_SCALE = 0.5
-    DEFAULT_BGR_FONT_COLOR = (0,255,0)
-    DEFAULT_BGR_BOX_COLOR = (255,0,0)
-
     def __init__(self):
         super().__init__('detection_node')
         self.get_logger().info('Initializing Detection Node...')
 
-        #Variables:
+        #Configurations:
         self._ros_config = STD_CFG
         self._yolo_config = DEFAULT_YOLO_CONFIG
+        self._detection_config = DEFAULT_DETECTION_CONFIG
         
-
-        self._image_encoding = self.DEFAULT_IMAGE_ENCODING
-        
-        self._bgr_font_color = self.DEFAULT_BGR_FONT_COLOR
-        self._bgr_box_color = self.DEFAULT_BGR_BOX_COLOR
-        self._font_scale = self.DEFAULT_FONT_SCALE
-        self._line_thickness = self.DEFAULT_LINE_THICKNESS
-
-        self._show_cv_feed = self.DEFAULT_FEED_SHOW
         self._pure_image = None    #Stores the pure image returned from the camera
         self._annotated_image = None   #Stores the image with boxes and identifiers
         
@@ -124,7 +104,7 @@ class DetectionNode(Node):
         rgb_image = message.rgb_image
 
         # Convert ros2 message to image:
-        cv_image = self._bridge.imgmsg_to_cv2(rgb_image,self._image_encoding)
+        cv_image = self._bridge.imgmsg_to_cv2(rgb_image,self._detection_config.image_encoding)
         # Pass frame through model and return results:
         results = self._model(cv_image, verbose=False,device=self._process_device)[0]
         # Save original image:
@@ -164,8 +144,8 @@ class DetectionNode(Node):
                     self._annotated_image = self._add_bounding_box_to_image(
                         self._annotated_image,
                         xyxy = box_coords,
-                        bgr = self._bgr_box_color,
-                        thickness= self._line_thickness
+                        bgr = self._detection_config.bgr_box_color,
+                        thickness= self._detection_config.line_thickness
                     )
 
                     # Add text with item's name/type to annotated frame
@@ -174,7 +154,7 @@ class DetectionNode(Node):
                         x = box_coords[0],
                         y = box_coords[1],
                         text = item_name,
-                        bgr = self._bgr_font_color
+                        bgr = self._detection_config.bgr_font_color
                     )
 
         # Publish message if there are detections:
@@ -186,7 +166,7 @@ class DetectionNode(Node):
             self._publish_data(pub_msg)
 
         # Show feed if flag is set
-        if self._show_cv_feed:
+        if self._detection_config.show_feed:
             cv2.imshow("Detections",self._annotated_image)
             cv2.waitKey(1)
 
