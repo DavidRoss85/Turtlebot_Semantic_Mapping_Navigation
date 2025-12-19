@@ -22,8 +22,8 @@ from typing import FrozenSet
 from dataclasses import dataclass, field
 import logging
 
-# Default confidence threshold for YOLO detections
-DEFAULT_CONFIDENCE_THRESHOLD = 0.8
+# Constants
+DEFAULT_CONFIDENCE_THRESHOLD = 0.8 # Default confidence threshold for YOLO detections
 
 # Setup logger
 logger = logging.getLogger(__name__)
@@ -40,10 +40,20 @@ class YoloModel(str, Enum):
     SMALL = 'yolov8s.pt'
     MEDIUM = 'yolov8m.pt'
 
+# Compute Preferences:
+class ComputePreference(Enum):
+    CPU_ONLY = "cpu_only"
+    ACCELERATE_IF_AVAILABLE = "accelerate_if_available"
+    MAX_THROUGHPUT = "max_throughput"
+    THROTTLED = "throttled"
+
+
+
 # YoloConfig Dataclass:
 @dataclass(frozen=True)
 class YoloConfig:
     model: YoloModel = YoloModel.NANO
+    compute_preference: ComputePreference = ComputePreference.CPU_ONLY
     confidence_threshold: float = DEFAULT_CONFIDENCE_THRESHOLD
 
     filter_mode: DetectionFilterMode = DetectionFilterMode.ALL
@@ -130,15 +140,3 @@ class YoloConfig:
         if self.filter_mode == DetectionFilterMode.REJECT and not self.ignore_classes:
             raise ValueError("REJECT mode requires ignore_classes")
         
-
-
-# Saving this for later:
-
-# def should_process(class_name: str, cfg: YoloConfig) -> bool:
-#     if cfg.filter_mode == DetectionFilterMode.ALL:
-#         return True
-#     if cfg.filter_mode == DetectionFilterMode.ALLOW:
-#         return class_name in cfg.target_classes
-#     if cfg.filter_mode == DetectionFilterMode.REJECT:
-#         return class_name not in cfg.ignore_classes
-#     return False
