@@ -21,7 +21,7 @@ from cv_bridge import CvBridge
 
 # YOLO library:
 from ultralytics import YOLO #pip3 install typeguard ultralytics
-#Ultralytics glitch when attempting to build. Use export to ensure proper import:
+#Ultralytics glitch when attempting to run. Use export to ensure proper import:
 # export PYTHONPATH=</path/to/your/virtual/environment>/lib/python3.12/site-packages:$PYTHONPATH
 
 # Configurations:
