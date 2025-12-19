@@ -7,12 +7,12 @@ from object_location.config.ros_config import(
 
 # Simulation (Gazebo) preset:
 SIM_CFG = RosConfig(
-    rgb_topic=TopicKey.GAZEBO_RGB_CAMERA.value,
-    depth_topic=TopicKey.GAZEBO_DEPTH.value,
+    rgb_topic=TopicKey.GAZEBO_RGB_CAMERA,
+    depth_topic=TopicKey.GAZEBO_DEPTH,
 )
 
 # Real (Non-simulation) presets:
 STD_CFG = RosConfig(
-    rgb_topic=TopicKey.RGB_CAMERA.value,
-    depth_topic=TopicKey.DEPTH.value,
+    rgb_topic=TopicKey.RGB_CAMERA,
+    depth_topic=TopicKey.DEPTH,
 )
