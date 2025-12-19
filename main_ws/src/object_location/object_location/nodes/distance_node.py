@@ -26,7 +26,7 @@ from object_location_interfaces.msg import (
 import cv2      #pip3 install opencv-python
 from cv_bridge import CvBridge
 
-# Configureations
+# Configurations
 from object_location.utils.helpers import USING_GAZEBO
 from object_location.config.ros_presets import SIM_CFG, STD_CFG
 
