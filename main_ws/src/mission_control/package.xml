@@ -12,6 +12,9 @@
   <depend>sensor_msgs</depend>
   <depend>geometry_msgs</depend> 
   <depend>object_location_interfaces</depend>
+  
+  <exec_depend>robot_common</exec_depend>
+
 
   <test_depend>ament_copyright</test_depend>
   <test_depend>ament_flake8</test_depend>

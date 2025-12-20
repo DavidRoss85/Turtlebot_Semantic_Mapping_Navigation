@@ -3,22 +3,23 @@
 Mission Control State Machine 
 Uses object_location_interfaces messages
 """
+import time
 
+# ROS2 imports
 import rclpy
 from rclpy.node import Node
 from std_msgs.msg import String, Float32
 from object_location_interfaces.msg import RSyncDetectionList, RSyncLocationList
-from enum import Enum
-import time
 
 
-class MissionState(Enum):
-    """Robot mission states"""
-    IDLE = "IDLE"
-    DETECTING = "DETECTING"
-    APPROACHING = "APPROACHING"
-    PICKING = "PICKING"
-    DONE = "DONE"
+from robot_common.lifecycle import MissionState
+# class MissionState(Enum):
+#     """Robot mission states"""
+#     IDLE = "IDLE"
+#     DETECTING = "DETECTING"
+#     APPROACHING = "APPROACHING"
+#     PICKING = "PICKING"
+#     DONE = "DONE"
 
 
 class StateMachineNode(Node):
