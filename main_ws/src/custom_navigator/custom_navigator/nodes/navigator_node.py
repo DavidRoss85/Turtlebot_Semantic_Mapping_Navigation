@@ -12,7 +12,7 @@ from turtlebot4_navigation.turtlebot4_navigator import TurtleBot4Directions, Tur
 
 
 # Configurations:
-from object_location.config.ros_presets import STD_CFG
+from custom_navigator.config.ros_presets import STD_CFG
 
 class NavigatorSetupNode(Node):
 

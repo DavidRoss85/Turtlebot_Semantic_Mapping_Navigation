@@ -16,7 +16,7 @@ from object_location_interfaces.msg import(
 ) 
 
 # Configuration presets:
-from object_location.config.ros_presets import STD_CFG
+from custom_navigator.config.ros_presets import STD_CFG
 
 class ApproachControllerNode(Node):
 
