@@ -3,7 +3,7 @@
 <package format="3">
   <name>object_location</name>
   <version>0.0.0</version>
-  <description>TODO: Package description</description>
+  <description>Object location package</description>
   <maintainer email="ross.d2@northeastern.edu">david-ross</maintainer>
   <license>Apache-2.0</license>
 

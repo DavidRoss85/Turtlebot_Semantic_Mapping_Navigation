@@ -1,6 +1,6 @@
 # Preset configurations for ROS2
 
-from object_location.config.ros_config import(
+from robot_common.ros_config import(
     TopicKey,
     RosConfig
 )
