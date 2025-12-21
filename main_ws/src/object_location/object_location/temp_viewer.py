@@ -13,17 +13,10 @@ from object_location_interfaces.msg import (
     LocationList,
     RSyncLocationList,
 )
-import math
+
 import numpy as np
-import matplotlib.pyplot as plt
 
 from object_location.config.yolo_config import YOLO_CLASSES
-from object_location.utils.helpers import(
-    find_a_star_path,
-    quaternion_to_yaw, 
-    inflate_obstacles,
-    transform_2d, 
-)
 import cv2
 from cv_bridge import CvBridge
 

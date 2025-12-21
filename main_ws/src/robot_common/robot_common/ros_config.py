@@ -2,6 +2,8 @@
 
 from enum import Enum
 
+USING_GAZEBO = True
+
 # Enum for various topics:
 class TopicKey(str, Enum):
     RGB_CAMERA ='/oakd/rgb/preview/image_raw'

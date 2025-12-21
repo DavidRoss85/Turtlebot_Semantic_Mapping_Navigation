@@ -27,7 +27,7 @@ import cv2      #pip3 install opencv-python
 from cv_bridge import CvBridge
 
 # Configurations
-from object_location.utils.helpers import USING_GAZEBO
+from robot_common.ros_config import USING_GAZEBO
 from object_location.config.ros_presets import SIM_CFG, STD_CFG
 
 class DistanceNode(Node):

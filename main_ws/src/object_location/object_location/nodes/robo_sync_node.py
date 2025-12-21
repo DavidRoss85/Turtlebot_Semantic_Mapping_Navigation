@@ -10,7 +10,7 @@ from sensor_msgs.msg import Image
 from object_location_interfaces.msg import RoboSync as RSync
 
 # Configurations:
-from object_location.utils.helpers import USING_GAZEBO
+from robot_common.ros_config import USING_GAZEBO
 from object_location.config.ros_presets import STD_CFG, SIM_CFG
 
 class RoboSyncNode(Node):
