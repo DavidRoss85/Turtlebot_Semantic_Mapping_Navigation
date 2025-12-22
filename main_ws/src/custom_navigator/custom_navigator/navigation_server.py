@@ -15,6 +15,14 @@ from rclpy.executors import MultiThreadedExecutor
 
 from custom_navigator_interfaces.action import NavigationRequest
 
+class NavigationRequest(int, Enum):
+    PAUSE = 0
+    ALIGN = 1
+    NAVIGATE = 2
+    SEARCH = 3
+    APPROACH = 4
+    CANCEL = 5
+
 class NavigationState(int, Enum):
     IDLE = 0
     ALIGNING = 1
@@ -24,6 +32,7 @@ class NavigationState(int, Enum):
     REACHED_GOAL = 5
     CANCELED = 6
     FAILED = 7
+    PAUSED = 8
 
 class NavigationServer(Node):
 
@@ -48,7 +57,7 @@ class NavigationServer(Node):
         )
 
     #----------------------------------------------------------------------------------
-    def goal_callback(self, goal_request):
+    def goal_callback(self, goal_request: NavigationRequest.Goal):
         self.get_logger().info('Received goal request')
 
         if self._state != NavigationState.IDLE:
@@ -74,13 +83,23 @@ class NavigationServer(Node):
         result_msg = NavigationRequest.Result()
 
         while True:
-            # Check if the goal is canceled
+            #  ----- Check if the goal is canceled -----
             if goal_handle.is_cancel_requested:
                 self._state = NavigationState.CANCELED
                 self.get_logger().info('Goal canceled')
                 # Set result_msg here...
                 return result_msg
             
+            # ----- Pause the navigation if the goal request is to pause -----
+            if self._state == NavigationState.PAUSED:
+                self.get_logger().info('Navigation paused')
+                # Add pause logic here
+                feedback_msg.state = NavigationState.PAUSED
+                feedback_msg.feedback_text = 'Navigation paused'
+                goal_handle.publish_feedback(feedback_msg)
+                rate.sleep()
+                continue
+
             self._state = NavigationState.NAVIGATING  # Set the state to NAVIGATING
 
             # Publish feedback
