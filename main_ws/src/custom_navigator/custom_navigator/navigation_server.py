@@ -1,0 +1,113 @@
+
+from enum import Enum
+
+import rclpy
+from rclpy.node import Node
+from rclpy.action import(
+    ActionServer,
+    CancelResponse,
+    GoalResponse,
+)
+from rclpy.action.server import ServerGoalHandle
+
+from rclpy.callback_groups import ReentrantCallbackGroup
+from rclpy.executors import MultiThreadedExecutor
+
+from custom_navigator_interfaces.action import NavigationRequest
+
+class NavigationState(int, Enum):
+    IDLE = 0
+    ALIGNING = 1
+    NAVIGATING = 2
+    SEARCHING = 3
+    APPROACHING = 4
+    REACHED_GOAL = 5
+    CANCELED = 6
+    FAILED = 7
+
+class NavigationServer(Node):
+
+    def __init__(self):
+        super().__init__('navigation_server')
+
+        self._cb_group = ReentrantCallbackGroup()   # Allows multiple callbacks to run simultaneously
+        
+        self._state = NavigationState.IDLE  # Initialize the navigation state to IDLE
+
+        self._execute_rate = 10  # Set the execution rate for the navigation logic
+        
+        # Initialize the action server
+        self._action_server = ActionServer(
+            self,
+            NavigationRequest,
+            'navigate_to_pose',
+            goal_callback=self.goal_callback,
+            cancel_callback=self.cancel_callback,
+            execute_callback=self.execute_callback,
+            callback_group=self._cb_group
+        )
+
+    #----------------------------------------------------------------------------------
+    def goal_callback(self, goal_request):
+        self.get_logger().info('Received goal request')
+
+        if self._state != NavigationState.IDLE:
+            self.get_logger().info('Navigation is not idle, rejecting goal request')
+            return GoalResponse.REJECT
+        
+        return GoalResponse.ACCEPT
+    
+    #----------------------------------------------------------------------------------
+    def cancel_callback(self, goal):
+        self.get_logger().info('Received cancel request')
+        # Add cancel logic here
+
+        return CancelResponse.ACCEPT
+    
+    #----------------------------------------------------------------------------------
+    def execute_callback(self, goal_handle: ServerGoalHandle):
+        
+        rate = self.create_rate(self._execute_rate)  # Set the rate 
+
+        # Placeholder for the actual navigation logic:
+        feedback_msg = NavigationRequest.Feedback()
+        result_msg = NavigationRequest.Result()
+
+        while True:
+            # Check if the goal is canceled
+            if goal_handle.is_cancel_requested:
+                self._state = NavigationState.CANCELED
+                self.get_logger().info('Goal canceled')
+                # Set result_msg here...
+                return result_msg
+            
+            self._state = NavigationState.NAVIGATING  # Set the state to NAVIGATING
+
+            # Publish feedback
+            goal_handle.publish_feedback(feedback_msg)
+            self.get_logger().info('Executing goal')
+            # Add your navigation logic here
+            # Set result_msg here...
+            goal_handle.succeed()
+            rate.sleep()
+            break
+        return result_msg
+    
+#**************************************************************************************
+# Main function to initialize the ROS node and start the action server
+def main(args=None):
+    rclpy.init(args=args)
+    navigation_server = NavigationServer()
+
+    # Create a multi-threaded executor to handle multiple callbacks
+    executor = MultiThreadedExecutor(callback_groups=[navigation_server._cb_group])
+    executor.add_node(navigation_server)
+    executor.spin()
+
+    navigation_server.destroy_node()
+    executor.shutdown()
+    rclpy.shutdown()
+
+
+if __name__ == '__main__':
+    main()
