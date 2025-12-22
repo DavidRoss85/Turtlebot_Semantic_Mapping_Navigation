@@ -1,8 +1,16 @@
 # Request
-int32 placeholder_request
+std_msgs/Header header
+int8 request_type
+string request_text
+geometry_msgs/TransformStamped position
 ---
 # Result
-int32 placeholder_result
+int8 state
+bool success
+string result_text
+geometry_msgs/TransformStamped position
 ---
 # Feedback
-int32 placeholder_feedback
+int8 state
+string feedback_text
+geometry_msgs/TransformStamped position
