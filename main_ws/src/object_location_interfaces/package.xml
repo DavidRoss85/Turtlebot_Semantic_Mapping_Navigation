@@ -4,7 +4,7 @@
   <name>object_location_interfaces</name>
   <version>0.0.1</version>
   <description>Custom messages for object location</description>
-  <maintainer email="you@example.com">rx</maintainer>
+  <maintainer email="ross.d2@northeastern.edu">david-ross</maintainer>
   <license>Apache-2.0</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
