@@ -1,5 +1,6 @@
 
 from enum import Enum
+from time import time
 
 import rclpy
 from rclpy.node import Node
@@ -14,6 +15,9 @@ from rclpy.callback_groups import ReentrantCallbackGroup
 from rclpy.executors import MultiThreadedExecutor
 
 from custom_navigator_interfaces.action import NavigationRequest
+from custom_navigator.mapping.map_cache import NavMapCache
+
+from custom_navigator.config.ros_presets import STD_CFG
 
 #These enums need to be moved later to a separate file
 class NavRequest(int, Enum):
@@ -42,11 +46,14 @@ class NavigationServer(Node):
 
         self.get_logger().info('Navigation Server Node has been started.')
 
-        self._cb_group = ReentrantCallbackGroup()   # Allows multiple callbacks to run simultaneously
-        
+        self._ros_config = STD_CFG
         self._state = NavigationState.IDLE  # Initialize the navigation state to IDLE
-
         self._execute_rate = 100  # Set the execution rate for the navigation logic
+        self._map_update_interval = 0.05  # Interval to update the map in seconds
+        self._map_timeout_s = 5.0  # Timeout for waiting for the map in seconds
+
+        self._cb_group = ReentrantCallbackGroup()   # Allows multiple callbacks to run simultaneously
+        self._map_cache = NavMapCache(self, self._ros_config.navigation_grid_topic) # Map cache for occupancy grid
         
         # Initialize the action server
         self.get_logger().info('Initializing Action Server...')
@@ -62,17 +69,33 @@ class NavigationServer(Node):
 
     #----------------------------------------------------------------------------------
     def goal_callback(self, goal_request: NavigationRequest.Goal):
+        """Executes upon receiving a goal request."""
         self.get_logger().info('Received goal request')
 
         # Check if the server is idle before accepting a new goal
         if self._state != NavigationState.IDLE:
+            # For now it will simply reject new goals if not idle... Later we will add more complex logic
             self.get_logger().info('Navigation is not idle, rejecting goal request')
             return GoalResponse.REJECT
         
+        # User requests to navigate to a pose
+        if goal_request.request_type == NavRequest.NAVIGATE:
+            self.get_logger().info('Accepting NAVIGATE goal request')
+            map_ready = self._wait_for_map(timeout_s=self._map_timeout_s)
+            if not map_ready:
+                self.get_logger().info('Map not available, rejecting goal request')
+                return GoalResponse.REJECT
+            else:
+             # Accept the goal and set the state to NAVIGATING
+                self._state = NavigationState.NAVIGATING
+                #CREATE MAP PLAN HERE:
+
+        # Goal will execute in execute_callback
         return GoalResponse.ACCEPT
     
     #----------------------------------------------------------------------------------
     def cancel_callback(self, goal):
+        """Executes upon receiving a cancel request."""
         self.get_logger().info('Received cancel request')
         # Add cancel logic here
 
@@ -80,7 +103,7 @@ class NavigationServer(Node):
     
     #----------------------------------------------------------------------------------
     def execute_callback(self, goal_handle: ServerGoalHandle):
-        
+        """Executes upon receiving a goal request after approved by goal callback."""
         rate = self.create_rate(self._execute_rate)  # Set the rate 
 
         # Placeholder for the actual navigation logic:
@@ -106,7 +129,12 @@ class NavigationServer(Node):
                 rate.sleep()
                 continue
 
-            self._state = NavigationState.NAVIGATING  # Set the state to NAVIGATING
+            # ----- Begin navigation logic -----
+            if self._state == NavigationState.NAVIGATING:
+                if not self._wait_for_map(goal_handle, timeout_s=2.0):
+                    # cancel or timeout -> stop / abort
+                    pass
+                snap = self._map_cache.latest()
 
             # Publish feedback
             goal_handle.publish_feedback(feedback_msg)
@@ -118,6 +146,16 @@ class NavigationServer(Node):
         goal_handle.succeed()
         return result_msg
     
+    #----------------------------------------------------------------------------------
+    def _wait_for_map(self, timeout_s: float = 2.0) -> bool:
+        """Wait for the map to be available in the map cache."""
+        start = time.time()
+        while not self._map_cache.has_map():
+            if (time.time() - start) > timeout_s:
+                return False
+            time.sleep(self._map_update_interval)
+        return True
+
 #**************************************************************************************
 # Main function to initialize the ROS node and start the action server
 def main(args=None):
