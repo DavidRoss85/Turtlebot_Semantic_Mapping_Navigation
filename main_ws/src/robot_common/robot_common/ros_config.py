@@ -29,8 +29,8 @@ from dataclasses import dataclass
 # Data class for ros configurations
 @dataclass(frozen=True)
 class RosConfig:
-    rgb_topic: str
-    depth_topic: str
+    rgb_topic: str=TopicKey.RGB_CAMERA
+    depth_topic: str=TopicKey.DEPTH
     max_messages: int = 10
     sync_slop = 0.1
     detections_topic: str = TopicKey.DETECTIONS
