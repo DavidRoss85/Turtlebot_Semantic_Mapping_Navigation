@@ -24,8 +24,10 @@ setup(
     },
     entry_points={
         'console_scripts': [
-            'approach_controller_node = object_location.nodes.new_approach_controller_node:main',
-            'navigator_node = object_location.nodes.navigator_node:main',
+            'approach_controller_node = custom_navigator.nodes.new_approach_controller_node:main',
+            'navigator_node = custom_navigator.nodes.navigator_node:main',
+            'navigation_server = custom_navigator.navigation_server:main',
+            'server_test = custom_navigator.server_test:main',
         ],
     },
 )
