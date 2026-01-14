@@ -7,6 +7,15 @@ from geometry_msgs.msg import TransformStamped
 from custom_navigator_interfaces.action import NavigationRequest
 
 from time import sleep
+from enum import Enum
+
+class NavRequest(int, Enum):
+    PAUSE = 0
+    ALIGN = 1
+    NAVIGATE = 2
+    SEARCH = 3
+    APPROACH = 4
+    CANCEL = 5
 
 class NavigationClient(Node):
     def __init__(self):
@@ -23,7 +32,7 @@ class NavigationClient(Node):
         # Testing sending a goal then immediately canceling it
         self._action_client.wait_for_server()
         send_future = self._action_client.send_goal_async(goal_msg)
-        send_future.add_done_callback(self.goal_response_callback)
+        # send_future.add_done_callback(self.goal_response_callback)
 
 
     def goal_response_callback(self, future):
@@ -39,7 +48,7 @@ def main(args=None):
     navigation_client = NavigationClient()
 
     # Example goal
-    req = 1 # ALIGN
+    req = NavRequest.NAVIGATE
     text = "Align to target"
     position = TransformStamped()
     position.transform.translation.x = 2.0
