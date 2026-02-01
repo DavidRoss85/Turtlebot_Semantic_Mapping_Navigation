@@ -10,7 +10,7 @@ import cv2
 from scipy import ndimage
 from collections import defaultdict
 from object_location.config.yolo_config import YOLO_CLASSES
-from object_location.utils.costmap_utils import (
+from robot_common.geometry import (
     convert_grid_to_world,
     fetch_origin_and_resolution
 )

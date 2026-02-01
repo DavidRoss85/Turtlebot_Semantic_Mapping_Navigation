@@ -1,43 +1,41 @@
 
-import numpy as np
-from scipy.ndimage import binary_dilation
 
 DEFAULT_OPEN_CELL_THRESHOLD = 50
 
 # --- Helper functions ---
 #
 
-def inflate_obstacles(occ_grid, inflation_factor, resolution, threshold=DEFAULT_OPEN_CELL_THRESHOLD):
-    """
-    Inflates occupied cells in a binary occupancy grid to account for robot width.
+# def inflate_obstacles(occ_grid, inflation_factor, resolution, threshold=DEFAULT_OPEN_CELL_THRESHOLD):
+#     """
+#     Inflates occupied cells in a binary occupancy grid to account for robot width.
 
-    Args:
-        occ_grid: 2D NumPy array (0=free, 100=occupied, -1/50=unknown)
-        robot_width: robot diameter in meters
-        resolution: map resolution (m per cell)
-        threshold: occupancy threshold above which cells are considered occupied
-    Returns:
-        inflated_grid: new occupancy map (same shape)
-    """
-    # Convert map to boolean: True = obstacle
-    obstacle_mask = occ_grid >= threshold
+#     Args:
+#         occ_grid: 2D NumPy array (0=free, 100=occupied, -1/50=unknown)
+#         robot_width: robot diameter in meters
+#         resolution: map resolution (m per cell)
+#         threshold: occupancy threshold above which cells are considered occupied
+#     Returns:
+#         inflated_grid: new occupancy map (same shape)
+#     """
+#     # Convert map to boolean: True = obstacle
+#     obstacle_mask = occ_grid >= threshold
 
-    # Compute inflation radius in cells
-    inflation_radius = int(np.ceil((inflation_factor / 2.0) / resolution))
+#     # Compute inflation radius in cells
+#     inflation_radius = int(np.ceil((inflation_factor / 2.0) / resolution))
 
-    # Build circular structuring element (kernel)
-    y, x = np.ogrid[-inflation_radius:inflation_radius+1,
-                    -inflation_radius:inflation_radius+1]
-    kernel = x**2 + y**2 <= inflation_radius**2
+#     # Build circular structuring element (kernel)
+#     y, x = np.ogrid[-inflation_radius:inflation_radius+1,
+#                     -inflation_radius:inflation_radius+1]
+#     kernel = x**2 + y**2 <= inflation_radius**2
 
-    # Perform binary dilation
-    inflated_mask = binary_dilation(obstacle_mask, structure=kernel)
+#     # Perform binary dilation
+#     inflated_mask = binary_dilation(obstacle_mask, structure=kernel)
 
-    # Build new map: 100 where inflated, else original
-    inflated_grid = occ_grid.copy()
-    inflated_grid[inflated_mask] = 100
+#     # Build new map: 100 where inflated, else original
+#     inflated_grid = occ_grid.copy()
+#     inflated_grid[inflated_mask] = 100
 
-    return inflated_grid
+#     return inflated_grid
 
 #--------------------------------------------------------------------------------
 def inflate_obstacles2(occ_grid, inflation_factor, resolution, threshold=DEFAULT_OPEN_CELL_THRESHOLD):
@@ -172,26 +170,26 @@ def inflate_gaussian_multiclass(
 
     return inflated
 
-#----------------------------------------------------------------------------------
-def fetch_origin_and_resolution(map_info):
+# #----------------------------------------------------------------------------------
+# def fetch_origin_and_resolution(map_info):
 
-    origin_x = map_info.origin.position.x
-    origin_y = map_info.origin.position.y
-    resolution = map_info.resolution
-    return [origin_x,origin_y,resolution]
-#----------------------------------------------------------------------------------
-def convert_world_to_grid( x, y, map_info):
+#     origin_x = map_info.origin.position.x
+#     origin_y = map_info.origin.position.y
+#     resolution = map_info.resolution
+#     return [origin_x,origin_y,resolution]
+# #----------------------------------------------------------------------------------
+# def convert_world_to_grid( x, y, map_info):
     
-    origin_x, origin_y, resolution = fetch_origin_and_resolution(map_info)
+#     origin_x, origin_y, resolution = fetch_origin_and_resolution(map_info)
 
-    i = round((y - origin_y) / resolution)  # row
-    j = round((x - origin_x) / resolution)  # col
+#     i = round((y - origin_y) / resolution)  # row
+#     j = round((x - origin_x) / resolution)  # col
 
-    return [i,j]
-#----------------------------------------------------------------------------------   
-def convert_grid_to_world(i, j, map):
-    origin_x, origin_y, resolution = fetch_origin_and_resolution(map)
+#     return [i,j]
+# #----------------------------------------------------------------------------------   
+# def convert_grid_to_world(i, j, map):
+#     origin_x, origin_y, resolution = fetch_origin_and_resolution(map)
 
-    x = origin_x + j * resolution
-    y = origin_y + i * resolution
-    return [x, y]
+#     x = origin_x + j * resolution
+#     y = origin_y + i * resolution
+#     return [x, y]

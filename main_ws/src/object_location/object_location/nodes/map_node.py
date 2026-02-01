@@ -24,7 +24,7 @@ import matplotlib.pyplot as plt
 
 from robot_common.geometry import quaternion_to_yaw
 from object_location.utils.costmap_utils import (
-    inflate_obstacles, inflate_obstacles2, inflate_gaussian_multiclass,
+    inflate_obstacles2, inflate_gaussian_multiclass,
 )
 import cv2
 

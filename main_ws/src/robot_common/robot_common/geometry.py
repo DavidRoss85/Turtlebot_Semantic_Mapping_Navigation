@@ -36,3 +36,48 @@ def transform_2d(tx, ty, theta, x, y):
 def euclidean(a, b):
     """Euclidean distance between two grid cells."""
     return math.hypot(a[0] - b[0], a[1] - b[1])
+
+#----------------------------------------------------------------------------------
+def fetch_origin_and_resolution(map_info)-> list:
+    """
+    Fetch the origin and resolution from a map info object.
+    
+    :param map_info: map info object
+    :return: [origin_x, origin_y, resolution]
+    """
+    origin_x = map_info.origin.position.x
+    origin_y = map_info.origin.position.y
+    resolution = map_info.resolution
+    return [origin_x,origin_y,resolution]
+#----------------------------------------------------------------------------------
+def convert_world_to_grid( x, y, map_info):
+    """
+    Convert a specific world coordinates to grid index.
+    
+    :param x: x coordinate in world frame
+    :param y: y coordinate in world frame
+    :param map_info: map info object
+    :return: [i, j] grid coordinates (row, column)
+    """
+    origin_x, origin_y, resolution = fetch_origin_and_resolution(map_info)
+
+    i = round((y - origin_y) / resolution)  # row
+    j = round((x - origin_x) / resolution)  # col
+
+    return [i,j]
+#----------------------------------------------------------------------------------   
+def convert_grid_to_world(i, j, map):
+    """
+    Convert grid indices to world coordinates.
+
+    :param i: row index in grid
+    :param j: column index in grid
+    :param map: map object
+    :return: [x, y] coordinates in world frame
+    """
+
+    origin_x, origin_y, resolution = fetch_origin_and_resolution(map)
+
+    x = origin_x + j * resolution
+    y = origin_y + i * resolution
+    return [x, y]
