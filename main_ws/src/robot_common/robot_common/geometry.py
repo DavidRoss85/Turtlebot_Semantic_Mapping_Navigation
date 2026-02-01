@@ -81,3 +81,24 @@ def convert_grid_to_world(i, j, map):
     x = origin_x + j * resolution
     y = origin_y + i * resolution
     return [x, y]
+
+
+# Updated versions of the above functions that work with NavGridSnapshot
+#----------------------------------------------------------------------------------
+def snap_origin_resolution(snap):
+    # expects NavGridSnapshot with origin_x/origin_y/resolution
+    return snap.origin_x, snap.origin_y, snap.resolution
+
+#----------------------------------------------------------------------------------
+def snap_world_to_grid(x, y, snap):
+    origin_x, origin_y, resolution = snap_origin_resolution(snap)
+    i = round((y - origin_y) / resolution)  # row
+    j = round((x - origin_x) / resolution)  # col
+    return [i, j]
+
+#
+def snap_grid_to_world(i, j, snap):
+    origin_x, origin_y, resolution = snap_origin_resolution(snap)
+    x = origin_x + j * resolution
+    y = origin_y + i * resolution
+    return [x, y]
