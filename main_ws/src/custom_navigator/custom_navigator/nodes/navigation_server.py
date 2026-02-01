@@ -40,6 +40,7 @@ class NavigationState(int, Enum):
     CANCELED = 7
     FAILED = 8
     PAUSED = 9
+    EMERGENCY_STOP = 10
 
 class NavigationServer(Node):
 
@@ -53,15 +54,33 @@ class NavigationServer(Node):
         self._execute_rate = 100  # Set the execution rate for the navigation logic
         self._map_update_interval = 0.05  # Interval to update the map in seconds
         self._map_timeout_s = 5.0  # Timeout for waiting for the map in seconds
-        self._timer_interval = 1  # General timer interval in seconds
+        self._nav_timer_interval = 1  # General timer interval in seconds
+        self._feedback_timer_interval = 1.0  # Feedback timer interval in seconds
+        self._active_goal_handle: ServerGoalHandle = None  # Currently active goal handle
+        self._active_feedback: NavigationRequest.Feedback = None  # Currently active feedback message
+        self._feedback_state_list = {            
+            NavigationState.ALIGNING,
+            NavigationState.PLANNING,
+            NavigationState.NAVIGATING,
+            NavigationState.SEARCHING,
+            NavigationState.APPROACHING,
+            NavigationState.PAUSED
+          }  # List of states where feedback is published
 
         self._goal_callback_lock = threading.Lock()
 
         self._cb_group = ReentrantCallbackGroup()   # Allows multiple callbacks to run simultaneously
         self._map_cache = NavMapCache(self, self._ros_config.navigation_grid_topic) # Map cache for occupancy grid
+        
+        # Initialize timers:
         self._nav_timer = self.create_timer(
-            self._timer_interval,
+            self._nav_timer_interval,
             self._nav_timer_callback,
+            callback_group=self._cb_group
+        )
+        self._feedback_timer = self.create_timer(
+            self._feedback_timer_interval,  # Feedback interval in seconds
+            self._feedback_timer_callback,
             callback_group=self._cb_group
         )
 
@@ -109,57 +128,94 @@ class NavigationServer(Node):
     #----------------------------------------------------------------------------------
     def execute_callback(self, goal_handle: ServerGoalHandle):
         """Executes upon receiving a goal request after approved by goal callback."""
-        rate = self.create_rate(self._execute_rate)  # Set the rate 
 
-        # Placeholder for the actual navigation logic:
-        feedback_msg = NavigationRequest.Feedback()
+        # Local variables
         result_msg = NavigationRequest.Result()
+        rate = self.create_rate(self._execute_rate)  # Set the rate 
+        goal = goal_handle.request  # The actual goal request
+        final_text = ""
 
-        goal = goal_handle.request
+        #----- Cleanup function -----
+        def _cleanup_execution(text: str  = ""):
+            """Cleans up after a navigation failure."""
+            self._active_goal_handle = None
+            self._active_feedback = None
+            result_msg.state = self._state
+            result_msg.result_text = text
+            self.get_logger().info(text)
+
+        # Initial checks before starting execution
+        if self._state == NavigationState.EMERGENCY_STOP:
+            goal_handle.abort()
+            final_text="Navigation server is not ready to execute goals."
+            _cleanup_execution(final_text)
+            return result_msg
+
+        self._active_goal_handle = goal_handle # Store the active goal handle for use in other methods
 
         # ----- For navigation, plan the path -----
         if goal.request_type == NavRequest.NAVIGATE:
             self._state = NavigationState.PLANNING
-            map_available = self._wait_for_map(self._map_timeout_s)
+            map_available = self._wait_for_map(goal_handle, self._map_timeout_s)
             if not map_available:
-                self.get_logger().info('Map not available, cannot navigate')
                 goal_handle.abort()
                 self._state = NavigationState.FAILED
+                final_text="Map not available, navigation aborted."
+                _cleanup_execution(final_text)
                 return result_msg
             else:
-                pass  # Proceed with navigation logic
-                # Plan route, set state to NAVIGATING, etc.
-                self._state = NavigationState.NAVIGATING
+                # ----- Proceed with navigation logic -----
+                # <Plan route here> 
+                self._state = NavigationState.NAVIGATING # set state to NAVIGATING
+                self._active_feedback.state = self._state
+                self._active_feedback.feedback_text = "Starting Navigation..."
+                pass
 
-        while True:
+        # ----- Main execution loop -----
+        while self._state != NavigationState.EMERGENCY_STOP:
+
             #  ----- Check if the goal is canceled -----
             if goal_handle.is_cancel_requested:
-                self.get_logger().info('Goal canceled')
-                # Set result_msg here...
-                self._state = NavigationState.IDLE
+                self._state = NavigationState.CANCELED
                 goal_handle.canceled()
-                return result_msg
-            
-            if self._state == NavigationState.REACHED_GOAL:
-            # Condition to break the loop when the goal is reached
-                # Set result_msg here...
+                final_text="Navigation canceled by user."
                 break
             
-            # Publish feedback
-            goal_handle.publish_feedback(feedback_msg)
-            rate.sleep()
+            # ----- Chceck if navigation goal failed -----
+            if self._state == NavigationState.FAILED:
+                goal_handle.abort()
+                final_text="Navigation failed."
+                break
             
-        goal_handle.succeed()
+            # ----- Check if navigation goal succeeded -----
+            if self._state == NavigationState.REACHED_GOAL:
+                goal_handle.succeed()
+                final_text="Navigation succeeded."
+                break
+            
+            rate.sleep()
+            # Publish feedback - Moved to a designated feedback timer
+        
+        _cleanup_execution(final_text)
         return result_msg
+
     
     #----------------------------------------------------------------------------------
-    def _wait_for_map(self, timeout_s: float = 2.0) -> bool:
+    def _wait_for_map(self, goal_handle: ServerGoalHandle, timeout_s: float = 2.0) -> bool:
         """Wait for the map to be available in the map cache."""
         start = time.time()
 
         while not self._map_cache.has_map():
+            # Allow fast cancel / estop while waiting
+            if self._state == NavigationState.EMERGENCY_STOP:
+                return False
+            # Check for goal cancelation
+            if goal_handle.is_cancel_requested:
+                return False
+            # Check for timeout
             if (time.time() - start) > timeout_s:
                 return False
+            
             time.sleep(self._map_update_interval)
 
         return True
@@ -184,14 +240,46 @@ class NavigationServer(Node):
             case NavigationState.APPROACHING:
                 pass
             case NavigationState.PAUSED:    
-            # ----- Pause the navigation if the goal request is to pause -----
-                self.get_logger().info('Navigation paused')
+                # ----- Pause the navigation if the goal request is to pause -----
                 # Add pause logic here
                 feedback_msg.state = NavigationState.PAUSED
                 feedback_msg.feedback_text = 'Navigation paused'
 
+            #----- Return to IDLE States -----
+            case NavigationState.CANCELED:
+                # -- Handle cancellation logic here --
+                # Return to IDLE after handling cancellation:
+                self._state = NavigationState.IDLE
+                pass
+            case NavigationState.REACHED_GOAL:
+                # -- Handle goal reached logic here --
+                # Return to IDLE after reaching goal:
+                self._state = NavigationState.IDLE
             case _:
                 pass
+        
+        # Update active feedback message
+        if self._active_feedback is not None:
+            self._active_feedback.state = feedback_msg.state
+            self._active_feedback.feedback_text = feedback_msg.feedback_text
+
+    #----------------------------------------------------------------------------------
+    def _feedback_timer_callback(self):
+        """Timer callback to publish feedback periodically."""
+
+        # States to publish feedback for:
+        if self._state not in self._feedback_state_list:
+            return
+
+        if self._active_goal_handle is None \
+            or not self._active_goal_handle.is_active \
+            or self._active_feedback is None:
+            return
+        
+        feedback_msg = NavigationRequest.Feedback()
+        feedback_msg.state = self._state
+        feedback_msg.feedback_text = f'{self._active_feedback.feedback_text}' if self._active_feedback else '-'
+        self._active_goal_handle.publish_feedback(feedback_msg)
 
 #**************************************************************************************
 # Main function to initialize the ROS node and start the action server
