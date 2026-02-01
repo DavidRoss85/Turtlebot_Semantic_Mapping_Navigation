@@ -6,7 +6,6 @@ geometry_msgs/TransformStamped position
 ---
 # Result
 int8 state
-bool success
 string result_text
 geometry_msgs/TransformStamped position
 ---
