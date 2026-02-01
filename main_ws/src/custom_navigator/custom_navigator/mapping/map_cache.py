@@ -6,7 +6,8 @@ from nav_msgs.msg import OccupancyGrid
 
 @dataclass(frozen=True)
 class NavGridSnapshot:
-    msg: OccupancyGrid
+    # msg: OccupancyGrid
+    data: list[int]
     width: int
     height: int
     resolution: float
@@ -15,20 +16,22 @@ class NavGridSnapshot:
     frame_id: str
 
 class NavMapCache:
-    def __init__(self, node, topic_name: str):
+    def __init__(self, node, topic_name: str, message_limit: int = 10):
         self._lock = threading.Lock()
         self._latest: Optional[NavGridSnapshot] = None
         self._sub = node.create_subscription(
             OccupancyGrid,
             topic_name,
             self._callback,
-            10
+            message_limit
         )
 
+    #--------------------------------------------------------------------------------
     def _callback(self, msg: OccupancyGrid):
         info = msg.info
         snap = NavGridSnapshot(
-            msg=msg,
+            # msg=msg,
+            data = list(msg.data),
             width=int(info.width),
             height=int(info.height),
             resolution=float(info.resolution),
@@ -39,10 +42,12 @@ class NavMapCache:
         with self._lock:
             self._latest = snap
 
+    #--------------------------------------------------------------------------------
     def has_map(self) -> bool:
         with self._lock:
             return self._latest is not None
 
+    #--------------------------------------------------------------------------------
     def latest(self) -> Optional[NavGridSnapshot]:
         with self._lock:
             return self._latest
