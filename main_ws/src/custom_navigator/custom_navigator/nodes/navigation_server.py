@@ -1,4 +1,6 @@
 
+from typing import Optional
+import numpy as np
 from enum import Enum
 import time
 import threading
@@ -16,9 +18,13 @@ from rclpy.callback_groups import ReentrantCallbackGroup
 from rclpy.executors import MultiThreadedExecutor
 
 from custom_navigator_interfaces.action import NavigationRequest
-from custom_navigator.mapping.map_cache import NavMapCache
+from custom_navigator.mapping.map_cache import NavMapCache, NavGridSnapshot
+from custom_navigator.mapping.inflated_costmap import InflatedCostmap
+from robot_common.robot_common.robot_model import RobotModel
 
-from custom_navigator.config.ros_presets import STD_CFG
+from custom_navigator.config.ros_presets import STD_CFG as ROS_CONFIG
+from robot_common.robot_presets import TB4_MODEL as ROBOT_MODEL
+from custom_navigator.config.map_presets import DEFAULT_MAP_POLICY as MAP_POLICY
 
 #These enums need to be moved later to a separate file
 class NavRequest(int, Enum):
@@ -49,7 +55,9 @@ class NavigationServer(Node):
 
         self.get_logger().info('Navigation Server Node has been started.')
 
-        self._ros_config = STD_CFG
+        self._ros_config = ROS_CONFIG
+        self._robot_model = ROBOT_MODEL
+        self._map_policy = MAP_POLICY
         self._state = NavigationState.IDLE  # Initialize the navigation state to IDLE
         self._execute_rate = 100  # Set the execution rate for the navigation logic
         self._map_update_interval = 0.05  # Interval to update the map in seconds
@@ -58,6 +66,8 @@ class NavigationServer(Node):
         self._feedback_timer_interval = 1.0  # Feedback timer interval in seconds
         self._active_goal_handle: ServerGoalHandle = None  # Currently active goal handle
         self._active_feedback: NavigationRequest.Feedback = None  # Currently active feedback message
+        
+        # List of states where feedback is published:
         self._feedback_state_list = {            
             NavigationState.ALIGNING,
             NavigationState.PLANNING,
@@ -65,12 +75,18 @@ class NavigationServer(Node):
             NavigationState.SEARCHING,
             NavigationState.APPROACHING,
             NavigationState.PAUSED
-          }  # List of states where feedback is published
+          }  
 
         self._goal_callback_lock = threading.Lock()
 
         self._cb_group = ReentrantCallbackGroup()   # Allows multiple callbacks to run simultaneously
-        self._map_cache = NavMapCache(self, self._ros_config.navigation_grid_topic) # Map cache for occupancy grid
+
+        # Map cache for occupancy grid:
+        self._map_cache = NavMapCache(
+            self,                                   # Pass the node instance 
+            self._ros_config.navigation_grid_topic, # Topic name for the occupancy grid
+            self._ros_config.max_messages           # Max messages to store
+        )                                       
         
         # Initialize timers:
         self._nav_timer = self.create_timer(
@@ -89,7 +105,7 @@ class NavigationServer(Node):
         self._action_server = ActionServer(
             self,
             NavigationRequest,
-            'navigate_to_pose',
+            self._ros_config.navigation_server,
             execute_callback=self.execute_callback,
             goal_callback=self.goal_callback,
             cancel_callback=self.cancel_callback,
@@ -133,6 +149,7 @@ class NavigationServer(Node):
         result_msg = NavigationRequest.Result()
         rate = self.create_rate(self._execute_rate)  # Set the rate 
         goal = goal_handle.request  # The actual goal request
+        self._active_feedback = NavigationRequest.Feedback()  # Initialize feedback message
         final_text = ""
 
         #----- Cleanup function -----
@@ -143,6 +160,7 @@ class NavigationServer(Node):
             result_msg.state = self._state
             result_msg.result_text = text
             self.get_logger().info(text)
+        #----------------------------
 
         # Initial checks before starting execution
         if self._state == NavigationState.EMERGENCY_STOP:
@@ -156,16 +174,25 @@ class NavigationServer(Node):
         # ----- For navigation, plan the path -----
         if goal.request_type == NavRequest.NAVIGATE:
             self._state = NavigationState.PLANNING
-            map_available = self._wait_for_map(goal_handle, self._map_timeout_s)
-            if not map_available:
+            #----- Wait for map to be available -----
+            snapshot = self._wait_for_map(goal_handle, self._map_timeout_s)
+
+            #----- Abort if map is not available -----
+            if snapshot is None:
                 goal_handle.abort()
                 self._state = NavigationState.FAILED
                 final_text="Map not available, navigation aborted."
                 _cleanup_execution(final_text)
                 return result_msg
+            
             else:
                 # ----- Proceed with navigation logic -----
-                # <Plan route here> 
+                # Get the costmap:
+                costmap = self.build_inflated_costmap_from_snapshot(
+                    snap=snapshot,
+                    robot_model=self._robot_model,
+                    threshold=self._map_policy.occupancy_threshold
+                )
                 self._state = NavigationState.NAVIGATING # set state to NAVIGATING
                 self._active_feedback.state = self._state
                 self._active_feedback.feedback_text = "Starting Navigation..."
@@ -201,24 +228,45 @@ class NavigationServer(Node):
 
     
     #----------------------------------------------------------------------------------
-    def _wait_for_map(self, goal_handle: ServerGoalHandle, timeout_s: float = 2.0) -> bool:
+    def _wait_for_map(self, goal_handle: ServerGoalHandle, timeout_s: float = 2.0) -> Optional[NavGridSnapshot]:
         """Wait for the map to be available in the map cache."""
         start = time.time()
 
-        while not self._map_cache.has_map():
+        while True:
+            # Try to grab snapshot first
+            snap = self._map_cache.latest()
+            if snap is not None:
+                return snap
+
             # Allow fast cancel / estop while waiting
             if self._state == NavigationState.EMERGENCY_STOP:
-                return False
-            # Check for goal cancelation
+                return None
             if goal_handle.is_cancel_requested:
-                return False
-            # Check for timeout
+                return None
             if (time.time() - start) > timeout_s:
-                return False
-            
-            time.sleep(self._map_update_interval)
+                return None
 
-        return True
+            time.sleep(self._map_update_interval)
+    
+    #--------------------------------------------------------------------------------
+    def _convert_snap_to_grid(self, snap: NavGridSnapshot) -> np.ndarray:
+        """Convert a NavGridSnapshot to a 2D NumPy array."""
+        grid = np.array(snap.data, dtype=np.int16).reshape((snap.height, snap.width))
+        grid[grid < 0] = self._map_policy.unknown_value  # Convert unknown cells to specified value
+        return grid
+    
+    #--------------------------------------------------------------------------------
+    def build_inflated_costmap_from_snapshot(self,snap: NavGridSnapshot, robot_model: RobotModel, threshold=50):
+        occ = self._convert_snap_to_grid(snap)
+        inflation_radius = (robot_model.radius_m + robot_model.safety_margin_m) * self._map_policy.inflation_scale
+
+        return InflatedCostmap(
+            occupancy_grid=occ,
+            inflation_radius=inflation_radius,
+            resolution=snap.resolution,
+            threshold=threshold,
+        ).get_inflated_costmap()
+
     
     #----------------------------------------------------------------------------------
     def _nav_timer_callback(self):
