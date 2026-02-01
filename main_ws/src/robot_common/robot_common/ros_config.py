@@ -24,6 +24,10 @@ class TopicKey(str, Enum):
     DYNAMIC_TRANSFORM = '/tf'
     STATIC_TRANSFORM = '/tf_static'
 
+# Enum for action servers:
+class ActionServerKey(str, Enum):
+    NAVIGATION = '/navigate/action'
+
 from dataclasses import dataclass
 
 # Data class for ros configurations
@@ -44,3 +48,5 @@ class RosConfig:
     velocity_topic: str = TopicKey.CMD_VEL
     mission_state_topic: str = TopicKey.MISSION_STATE
     mission_status_topic: str = TopicKey.MISSION_STATUS
+
+    navigation_server: str = ActionServerKey.NAVIGATION
