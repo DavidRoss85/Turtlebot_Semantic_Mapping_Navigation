@@ -1,6 +1,20 @@
 
 import math
 
+
+#--------------------------------------------------------------------------------
+def clamp(v: float, lo: float, hi: float) -> float:
+    return max(lo, min(hi, v))
+
+#--------------------------------------------------------------------------------
+def wrap_to_pi(a: float) -> float:
+    while a > math.pi:
+        a -= 2.0 * math.pi
+    while a < -math.pi:
+        a += 2.0 * math.pi
+    return a
+#--------------------------------------------------------------------------------
+
 def quaternion_to_yaw(q):
     """
     Convert a quaternion into yaw angle (in radians).
