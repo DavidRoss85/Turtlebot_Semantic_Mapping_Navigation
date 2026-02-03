@@ -5,8 +5,6 @@ from enum import Enum
 import time
 import threading
 
-from main_ws.build.object_location.build.lib.object_location.utils.costmap_utils import convert_grid_to_world
-from main_ws.src.custom_navigator.custom_navigator.controllers.path_follow import PathFollower
 import rclpy
 from rclpy.node import Node
 from tf2_ros import Buffer, TransformListener
@@ -25,6 +23,7 @@ from custom_navigator_interfaces.action import NavigationRequest
 from custom_navigator.mapping.map_cache import NavMapCache, NavGridSnapshot
 from custom_navigator.mapping.inflated_costmap import InflatedCostmap
 from custom_navigator.planners.astar import AStarPlanner
+from custom_navigator.controllers.path_follow import PathFollower
 
 from robot_common.logging import log_error, log_info
 from robot_common.robot_common.robot_model import RobotModel
@@ -68,7 +67,7 @@ class NavigationServer(Node):
         self._map_policy = MAP_POLICY
         self._state = NavigationState.IDLE  # Initialize the navigation state to IDLE
 
-        self._execute_rate = 100  # Set the execution rate for the navigation logic
+        self._execute_rate = 10  # Set the execution rate for the navigation logic
         self._map_update_interval = 0.05  # Interval to update the map in seconds
         self._map_timeout_s = 5.0  # Timeout for waiting for the map in seconds
         self._pose_timeout_s = 10.0  # Timeout for waiting for the robot pose in seconds
@@ -91,6 +90,7 @@ class NavigationServer(Node):
 
         self._goal_callback_lock = threading.Lock()
         self._sm_lock = threading.Lock() # State machine lock
+        self._follower_lock = threading.Lock()  # Path follower lock
 
         self._cb_group = ReentrantCallbackGroup()   # Allows multiple callbacks to run simultaneously
 
@@ -150,7 +150,7 @@ class NavigationServer(Node):
 
         with self._goal_callback_lock:
             # Check if the server is idle before accepting a new goal
-            if self._state != NavigationState.IDLE:
+            if self._get_server_state() != NavigationState.IDLE:
                 # For now it will simply reject new goals if not idle... Later we will add more complex logic
                 self._last_log_event = log_info(self.get_logger(), 'Navigation is not idle, rejecting goal request')
                 return GoalResponse.REJECT
@@ -196,27 +196,25 @@ class NavigationServer(Node):
         #----------------------------
 
         # Initial checks before starting execution
-        with self._sm_lock:
-            if self._state == NavigationState.EMERGENCY_STOP:
-                goal_handle.abort()
-                final_text="Navigation server is not ready to execute goals."
-                _cleanup_execution(NavigationState.EMERGENCY_STOP, final_text)
-                return result_msg
+    
+        if self._get_server_state() == NavigationState.EMERGENCY_STOP:
+            goal_handle.abort()
+            final_text="Navigation server is not ready to execute goals."
+            _cleanup_execution(NavigationState.EMERGENCY_STOP, final_text)
+            return result_msg
 
         self._active_goal_handle = goal_handle # Store the active goal handle for use in other methods
 
         # ----- For navigation, plan the path -----
         if goal.request_type == NavRequest.NAVIGATE:
-            with self._sm_lock:
-                self._state = NavigationState.PLANNING
+            self._set_server_state(NavigationState.PLANNING)
             #----- Wait for map to be available -----
             snapshot = self._wait_for_map(goal_handle, self._map_timeout_s)
 
             #----- Abort if map is not available -----
             if snapshot is None:
                 goal_handle.abort()
-                with self._sm_lock:
-                    self._state = NavigationState.FAILED
+                self._set_server_state(NavigationState.FAILED)
                 final_text="Map not available, navigation aborted."
                 _cleanup_execution(NavigationState.FAILED, final_text)
                 return result_msg
@@ -235,8 +233,7 @@ class NavigationServer(Node):
                 # -- Abort if robot pose is not available --
                 if pose is None:
                     goal_handle.abort()
-                    with self._sm_lock:
-                        self._state = NavigationState.FAILED
+                    self._set_server_state(NavigationState.FAILED)
                     final_text="Robot pose not available, navigation aborted."
                     _cleanup_execution(NavigationState.FAILED,final_text)
                     return result_msg
@@ -262,50 +259,45 @@ class NavigationServer(Node):
                 # -- Convert plan to world coordinates --
                 world_plan = self._convert_plan_to_world(grid_plan, snapshot)
 
-                with self._sm_lock:
-                    # -- Start the path follower --
+                # -- Start the path follower --
+                with self._follower_lock:
                     self._follower.start(world_plan)
-                    # -- Set state to NAVIGATING --
-                    self._state = NavigationState.NAVIGATING # set state to NAVIGATING
-                self._active_feedback.state = self._state
-                self._active_feedback.feedback_text = "Starting Navigation..."
+
+                # -- Set state to NAVIGATING --
+                self._set_server_state(NavigationState.NAVIGATING)
                     # ----------------------------------------
 
         # ----- Main execution loop -----
         while True:
 
             # ----- Check for Emergency Stop -----
-            with self._sm_lock:
-                if self._state == NavigationState.EMERGENCY_STOP:
-                    final_state = NavigationState.EMERGENCY_STOP
-                    final_text = "Emergency Stop"
-                    goal_handle.abort()
-                    break
+            if self._get_server_state() == NavigationState.EMERGENCY_STOP:
+                final_state = NavigationState.EMERGENCY_STOP
+                final_text = "Emergency Stop"
+                goal_handle.abort()
+                break
 
             #  ----- Check if the goal is canceled -----
             if goal_handle.is_cancel_requested:
-                with self._sm_lock:
-                    self._state = NavigationState.CANCELED
+                self._set_server_state(NavigationState.CANCELED)
                 final_state = NavigationState.CANCELED
                 goal_handle.canceled()
                 final_text="Navigation canceled by user."
                 break
             
             # ----- Chceck if navigation goal failed -----
-            with self._sm_lock:
-                if self._state == NavigationState.FAILED:
-                    final_state = NavigationState.FAILED
-                    goal_handle.abort()
-                    final_text="Navigation failed."
-                    break
+            if self._get_server_state() == NavigationState.FAILED:
+                final_state = NavigationState.FAILED
+                goal_handle.abort()
+                final_text="Navigation failed."
+                break
             
             # ----- Check if navigation goal succeeded -----
-            with self._sm_lock:
-                if self._state == NavigationState.REACHED_GOAL:
-                    final_state = NavigationState.REACHED_GOAL
-                    goal_handle.succeed()
-                    final_text="Navigation succeeded."
-                    break
+            if self._get_server_state() == NavigationState.REACHED_GOAL:
+                final_state = NavigationState.REACHED_GOAL
+                goal_handle.succeed()
+                final_text="Navigation succeeded."
+                break
 
             self._nav_execute()
             rate.sleep()
@@ -321,8 +313,7 @@ class NavigationServer(Node):
         """Single navigation state-machine tick"""
 
         feedback_msg = NavigationRequest.Feedback()
-        with self._sm_lock:
-            state = self._state
+        state = self._get_server_state()
 
         match state:
             case NavigationState.IDLE:
@@ -350,15 +341,22 @@ class NavigationServer(Node):
                     y = pose.transform.translation.y
                     yaw = quaternion_to_yaw(pose.transform.rotation)
 
-                    cmd = self._follower.tick(x, y, yaw)
+                    # -- Tick the follower --
+                    cmd = None
+                    if self._get_server_state() == NavigationState.NAVIGATING:
+                        
+                        with self._follower_lock:
+                            cmd = self._follower.tick(x, y, yaw)
+                    
+                    # -- Publish velocity command if available --
                     if cmd is not None:
                         self._publish_velocity_command(cmd)
                     else:
                         self._publish_velocity_command(self._follower.stop_twist())
+
                         # Check if the path follower has reached the goal
                         if self._follower.has_reached_goal():
-                            with self._sm_lock:
-                                self._state = NavigationState.REACHED_GOAL
+                            self._set_server_state(NavigationState.REACHED_GOAL)
                         else:
                             pass
                             #Some logic should go here I suppose if the robot has no command
@@ -377,14 +375,14 @@ class NavigationServer(Node):
                 feedback_msg.feedback_text = 'Navigation paused'
 
             #----- Return to IDLE States -----
-            case NavigationState.CANCELED:
-                # -- Handle cancellation logic here --
-                pass
-            case NavigationState.REACHED_GOAL:
-                # -- Handle goal reached logic here --
-                pass
-            case _:
-                pass
+            # case NavigationState.CANCELED:
+            #     # -- Handle cancellation logic here --
+            #     pass
+            # case NavigationState.REACHED_GOAL:
+            #     # -- Handle goal reached logic here --
+            #     pass
+            # case _:
+            #     pass
         
         # Update active feedback message
         if self._active_feedback is not None:
@@ -402,9 +400,8 @@ class NavigationServer(Node):
                 return snap
 
             # Allow fast cancel / estop while waiting
-            with self._sm_lock:
-                if self._state == NavigationState.EMERGENCY_STOP:
-                    return None
+            if self._get_server_state() == NavigationState.EMERGENCY_STOP:
+                return None
             if goal_handle.is_cancel_requested:
                 return None
             if (time.time() - start) > timeout_s:
@@ -424,9 +421,8 @@ class NavigationServer(Node):
                 return pose
 
             # Allow fast cancel / estop while waiting
-            with self._sm_lock:
-                if self._state == NavigationState.EMERGENCY_STOP:
-                    return None
+            if self._get_server_state() == NavigationState.EMERGENCY_STOP:
+                return None
             if goal_handle.is_cancel_requested:
                 return None
             if (time.time() - start) > timeout_s:
@@ -483,9 +479,8 @@ class NavigationServer(Node):
         """Timer callback to publish feedback periodically."""
 
         # States to publish feedback for:
-        with self._sm_lock:
-            if self._state not in self._feedback_state_list:
-                return
+        if self._get_server_state() not in self._feedback_state_list:
+            return
 
         if self._active_goal_handle is None \
             or not self._active_goal_handle.is_active \
@@ -493,7 +488,7 @@ class NavigationServer(Node):
             return
         
         feedback_msg = NavigationRequest.Feedback()
-        feedback_msg.state = self._state
+        feedback_msg.state = self._get_server_state()
         feedback_msg.feedback_text = f'{self._active_feedback.feedback_text}' if self._active_feedback else '-'
         self._active_goal_handle.publish_feedback(feedback_msg)
 
@@ -505,11 +500,21 @@ class NavigationServer(Node):
     #----------------------------------------------------------------------------------
     def _reset_server_to_idle(self):
         """Reset the navigation server to IDLE state."""
+
+        self._set_server_state(NavigationState.IDLE)
+        self._follower.stop()
+        stop_cmd = Twist()
+        self._publish_velocity_command(stop_cmd)
+
+    #----------------------------------------------------------------------------------
+    def _get_server_state(self)-> NavigationState:
         with self._sm_lock:
-            self._state = NavigationState.IDLE
-            self._follower.stop()
-            stop_cmd = Twist()
-            self._publish_velocity_command(stop_cmd)
+            return self._state
+        
+    #----------------------------------------------------------------------------------
+    def _set_server_state(self, state:NavigationState):
+        with self._sm_lock:
+            self._state = state
 #**************************************************************************************
 # Main function to initialize the ROS node and start the action server
 def main(args=None):
