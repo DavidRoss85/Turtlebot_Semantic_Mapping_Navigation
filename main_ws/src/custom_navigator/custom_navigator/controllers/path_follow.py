@@ -1,6 +1,6 @@
 import math
 from typing import Optional
-from geometry_msgs.msg import Twist
+from geometry_msgs.msg import TwistStamped
 
 from robot_common.geometry import euclidean, wrap_to_pi, clamp
 
@@ -68,7 +68,7 @@ class PathFollower:
                 self._reached_goal = True
                 self._active = False
     #--------------------------------------------------------------------------------
-    def tick(self, x: float, y: float, yaw: float) -> Optional[Twist]:
+    def tick(self, x: float, y: float, yaw: float) -> Optional[TwistStamped]:
         """
         Returns:
           Twist if still navigating, None if done (goal reached or no plan).
@@ -93,12 +93,12 @@ class PathFollower:
         desired_yaw = math.atan2(dy, dx)
         yaw_err = wrap_to_pi(desired_yaw - yaw)
 
-        cmd = Twist()
+        cmd = TwistStamped()
 
         # Rotate-then-go:
         if abs(yaw_err) > self.yaw_tol:
-            cmd.angular.z = clamp(self.k_ang * yaw_err, -self.max_ang, self.max_ang)
-            cmd.linear.x = 0.0
+            cmd.twist.angular.z = clamp(self.k_ang * yaw_err, -self.max_ang, self.max_ang)
+            cmd.twist.linear.x = 0.0
             return cmd
 
         # Drive forward with mild steering
@@ -107,5 +107,5 @@ class PathFollower:
 
         return cmd
     #--------------------------------------------------------------------------------
-    def stop_twist(self) -> Twist:
-        return Twist()
+    def stop_twist(self) -> TwistStamped:
+        return TwistStamped()
