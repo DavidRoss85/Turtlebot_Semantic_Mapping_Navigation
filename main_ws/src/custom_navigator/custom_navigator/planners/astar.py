@@ -19,7 +19,7 @@ class AStarPlanner:
             grid: np.ndarray = None,
             threshold: int = DEFAULT_OPEN_CELL_THRESHOLD,
             weight: float = 1.0,
-            optimistic: bool = True,
+            optimistic: bool = False,
             optimistic_weight: float = DEFAULT_OPTIMISTIC_WEIGHT,
             loose_threshold: int = DEFAULT_LOOSE_THRESHOLD,
             connectivity: int = 8
@@ -140,7 +140,7 @@ class AStarPlanner:
     #--------------------------------------------------------------------------------
     def _find_path_using_a_star(
             self,start, goal, grid=None, threshold=DEFAULT_OPEN_CELL_THRESHOLD, 
-            weight=1.0, optimistic=True, optimistic_weight=DEFAULT_OPTIMISTIC_WEIGHT, 
+            weight=1.0, optimistic=False, optimistic_weight=DEFAULT_OPTIMISTIC_WEIGHT, 
             loose_threshold=DEFAULT_LOOSE_THRESHOLD
         ) -> list:
         """
@@ -159,29 +159,30 @@ class AStarPlanner:
 
         if grid is None:
             return []
+        
         # bounds check
-        # height, width = np.shape(grid)
-        # if not (0 <= si < height and 0 <= sj < width):
-        #     return []
-        # if not (0 <= gi < height and 0 <= gj < width):
-        #     return []
+        height, width = grid.shape
+        if not (0 <= si < height and 0 <= sj < width):
+            return []
+        if not (0 <= gi < height and 0 <= gj < width):
+            return []
 
-        # # start must be traversable
-        # if grid[si, sj] >= plan_threshold:
-        #     return []
-        # if not optimistic and grid[gi, gj] >= plan_threshold:
-        #     return []
+        # Choose plannin params:
+        plan_weight = optimistic_weight if optimistic else weight
+        plan_threshold = loose_threshold if optimistic else threshold
+
+        # start must be traversable
+        if grid[si, sj] >= plan_threshold:
+            return []
+        if not optimistic and grid[gi, gj] >= plan_threshold:
+            return []
 
         # --- A* optimistic setup ---
         # Experimental: if goal is not free, try to path to the closest block reached:
-        plan_weight = optimistic_weight if optimistic else weight
-        plan_threshold = loose_threshold if optimistic else threshold
         if optimistic:
-            # weight = optimistic_weight
-            # threshold = loose_threshold
-            height, width = grid.shape
-            gi = min(gi, height - 1)   # clip row (i)
-            gj = min(gj, width - 1)    # clip column (j)
+            gi = max(0, min(gi, height - 1))
+            gj = max(0, min(gj, width - 1))
+
 
         goal = (gi, gj)  # Ensure goal is immutable
 
@@ -238,4 +239,5 @@ class AStarPlanner:
             path.reverse()
             return path
 
+        return []
 #--------------------------------------------------------------------------------
