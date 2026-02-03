@@ -102,7 +102,7 @@ class NavigationServer(Node):
         # Map cache for occupancy grid:
         self._map_cache = NavMapCache(
             self,                                   # Pass the node instance 
-            self._ros_config.navigation_grid_topic, # Topic name for the occupancy grid
+            self._ros_config.occupancy_grid_topic, # Topic name for the occupancy grid
             self._ros_config.max_messages           # Max messages to store
         )                                       
         # Planner for path finding:
@@ -257,11 +257,10 @@ class NavigationServer(Node):
                         (grid_x, grid_y), 
                         (dest_x, dest_y)
                     )
-                    print(f"Grid plan: {grid_plan}\n")
+                    
                     # -- Convert plan to world coordinates --
                     world_plan = self._convert_plan_to_world(grid_plan, snapshot)
-                    print(f"World plan: {world_plan}")
-
+                    
                     # -- Start the path follower --
                     with self._follower_lock:
                         self._follower.start(world_plan)
@@ -269,7 +268,12 @@ class NavigationServer(Node):
                     # -- Set state to NAVIGATING --
                     self._set_server_state(NavigationState.NAVIGATING)
                         # ----------------------------------------
-            print(f"\n *** Planning completed... beginning Navigation")
+            # -- Print to log --            
+            self._last_log_event = log_info(
+                self.get_logger(), 
+                f"\n *** Planning completed... beginning Navigation",
+                self.execute_callback.__qualname__,self._last_log_event
+            )
             # ----- Main execution loop -----
             while True:
 
@@ -349,10 +353,9 @@ class NavigationServer(Node):
                     yaw = quaternion_to_yaw(pose.transform.rotation)
 
                     # -- Tick the follower --
-                    print(f"\nNavigating:\n\tx: {x}, y: {y}, yaw: {yaw}")
                     cmd = None
                     if self._get_server_state() == NavigationState.NAVIGATING:
-                        print(f"\nTicking the follower...\n")
+                        
                         with self._follower_lock:
                             cmd = self._follower.tick(x, y, yaw)
                     
