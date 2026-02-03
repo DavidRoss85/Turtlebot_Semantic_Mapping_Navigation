@@ -102,8 +102,8 @@ class PathFollower:
             return cmd
 
         # Drive forward with mild steering
-        cmd.linear.x = clamp(self.k_lin * dist, 0.0, self.max_lin)
-        cmd.angular.z = clamp(self.k_ang * yaw_err, -self.max_ang, self.max_ang)
+        cmd.twist.linear.x = clamp(self.k_lin * dist, 0.0, self.max_lin)
+        cmd.twist.angular.z = clamp(self.k_ang * yaw_err, -self.max_ang, self.max_ang)
 
         return cmd
     #--------------------------------------------------------------------------------
