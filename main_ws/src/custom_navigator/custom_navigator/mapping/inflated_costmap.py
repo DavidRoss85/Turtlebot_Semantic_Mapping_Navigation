@@ -20,7 +20,7 @@ class InflatedCostmap:
 
         self._inflated_costmap = self._inflate_obstacles(
             occ_grid=occupancy_grid,
-            inflation_factor=inflation_radius,
+            inflation_radius_m=inflation_radius,
             resolution=resolution,
             threshold=threshold
         )
@@ -47,8 +47,8 @@ class InflatedCostmap:
         return self._threshold
 
     #--------------------------------------------------------------------------------
-    @staticmethod
     def _inflate_obstacles(
+        self,
         occ_grid: np.ndarray, 
         inflation_radius_m: float, 
         resolution: float, 

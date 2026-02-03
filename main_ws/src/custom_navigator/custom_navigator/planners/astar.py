@@ -152,25 +152,25 @@ class AStarPlanner:
         Returns:
             path: list of [i, j] grid coordinates from start to goal
         """
-        if grid is None:
-            return []
-        # bounds check
-        if not (0 <= si < height and 0 <= sj < width):
-            return []
-        if not (0 <= gi < height and 0 <= gj < width):
-            return []
-
-        # start must be traversable
-        if grid[si, sj] >= plan_threshold:
-            return []
-        if not optimistic and grid[gi, gj] >= plan_threshold:
-            return []
-
-
         # --- A* setup ---
         si, sj = start
         gi, gj = goal
         start = (si, sj)
+
+        if grid is None:
+            return []
+        # bounds check
+        # height, width = np.shape(grid)
+        # if not (0 <= si < height and 0 <= sj < width):
+        #     return []
+        # if not (0 <= gi < height and 0 <= gj < width):
+        #     return []
+
+        # # start must be traversable
+        # if grid[si, sj] >= plan_threshold:
+        #     return []
+        # if not optimistic and grid[gi, gj] >= plan_threshold:
+        #     return []
 
         # --- A* optimistic setup ---
         # Experimental: if goal is not free, try to path to the closest block reached:
