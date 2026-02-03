@@ -2,7 +2,7 @@ import math
 from typing import Optional
 from geometry_msgs.msg import TwistStamped
 
-from robot_common.geometry import euclidean, wrap_to_pi, clamp
+from robot_common.geometry import wrap_to_pi, clamp
 
 class PathFollower:
     def __init__(
@@ -43,6 +43,9 @@ class PathFollower:
     def is_active(self) -> bool:
         return self._active
 
+    def get_path_remaining(self):
+        if len(self._plan)>0:
+            return self._plan[self._i:]
     #--------------------------------------------------------------------------------
     def has_reached_goal(self) -> bool:
         return self._reached_goal
@@ -73,39 +76,42 @@ class PathFollower:
         Returns:
           Twist if still navigating, None if done (goal reached or no plan).
         """
-        if not self._active:
-            return None
+        try:
+            if not self._active:
+                return None
 
-        # Advance if we reached the current waypoint
-        self._advance_if_close(x, y)
+            # Advance if we reached the current waypoint
+            self._advance_if_close(x, y)
 
-        # If we advanced past the end, we're done
-        if not self._active:
-            return None
+            # If we advanced past the end, we're done
+            if not self._active:
+                return None
 
-        tgt = self._target()
-        tx, ty = tgt[0], tgt[1]
+            tgt = self._target()
+            tx, ty = tgt[0], tgt[1]
+            
 
-        dx = tx - x
-        dy = ty - y
-        dist = euclidean(dx, dy)
+            dx = tx - x
+            dy = ty - y
+            dist = math.hypot(dx, dy)
 
-        desired_yaw = math.atan2(dy, dx)
-        yaw_err = wrap_to_pi(desired_yaw - yaw)
+            desired_yaw = math.atan2(dy, dx)
+            yaw_err = wrap_to_pi(desired_yaw - yaw)
 
-        cmd = TwistStamped()
+            cmd = TwistStamped()
+            # Rotate-then-go:
+            if abs(yaw_err) > self.yaw_tol:
+                cmd.twist.angular.z = clamp(self.k_ang * yaw_err, -self.max_ang, self.max_ang)
+                cmd.twist.linear.x = 0.0
+                return cmd
 
-        # Rotate-then-go:
-        if abs(yaw_err) > self.yaw_tol:
+            # Drive forward with mild steering
+            cmd.twist.linear.x = clamp(self.k_lin * dist, 0.0, self.max_lin)
             cmd.twist.angular.z = clamp(self.k_ang * yaw_err, -self.max_ang, self.max_ang)
-            cmd.twist.linear.x = 0.0
+
             return cmd
-
-        # Drive forward with mild steering
-        cmd.twist.linear.x = clamp(self.k_lin * dist, 0.0, self.max_lin)
-        cmd.twist.angular.z = clamp(self.k_ang * yaw_err, -self.max_ang, self.max_ang)
-
-        return cmd
+        except Exception as e:
+            raise RuntimeError(f"\nAn error occurred inside of {self.tick.__qualname__}: \n{e}\n")
     #--------------------------------------------------------------------------------
     def stop_twist(self) -> TwistStamped:
         return TwistStamped()
