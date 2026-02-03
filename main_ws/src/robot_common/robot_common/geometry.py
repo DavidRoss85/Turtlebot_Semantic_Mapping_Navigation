@@ -47,7 +47,7 @@ def transform_2d(tx, ty, theta, x, y):
     return item_x, item_y
 
 #--------------------------------------------------------------------------------
-def euclidean(a, b):
+def euclidean(a:list, b:list):
     """Euclidean distance between two grid cells."""
     return math.hypot(a[0] - b[0], a[1] - b[1])
 
