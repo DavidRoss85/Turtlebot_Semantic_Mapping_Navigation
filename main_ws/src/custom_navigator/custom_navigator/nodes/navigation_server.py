@@ -26,7 +26,7 @@ from custom_navigator.planners.astar import AStarPlanner
 from custom_navigator.controllers.path_follow import PathFollower
 
 from robot_common.logging import log_error, log_info
-from robot_common.robot_common.robot_model import RobotModel
+from robot_common.robot_model import RobotModel
 from robot_common.geometry import quaternion_to_yaw, snap_grid_to_world, snap_world_to_grid
 
 from custom_navigator.config.ros_presets import STD_CFG as ROS_CONFIG
@@ -178,7 +178,7 @@ class NavigationServer(Node):
 
         # Local variables
         result_msg = NavigationRequest.Result()
-        rate = self.create_rate(self._execute_rate)  # Set the rate 
+        delay_s = 1.0 / float(self._execute_rate)  # Set the rate 
         goal = goal_handle.request  # The actual goal request
         self._active_feedback = NavigationRequest.Feedback()  # Initialize feedback message
         final_text = "Navigation Terminated Unexpectedly"
@@ -300,7 +300,7 @@ class NavigationServer(Node):
                 break
 
             self._nav_execute()
-            rate.sleep()
+            time.sleep(delay_s)
             
 
         
