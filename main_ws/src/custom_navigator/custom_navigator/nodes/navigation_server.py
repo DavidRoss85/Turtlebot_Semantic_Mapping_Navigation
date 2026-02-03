@@ -8,7 +8,7 @@ import threading
 import rclpy
 from rclpy.node import Node
 from tf2_ros import Buffer, TransformListener
-from geometry_msgs.msg import TransformStamped, Twist
+from geometry_msgs.msg import TransformStamped, TwistStamped
 from rclpy.action import(
     ActionServer,
     CancelResponse,
@@ -137,7 +137,7 @@ class NavigationServer(Node):
         # Initialize publisher for velocity commands
         self._last_log_event = log_info(self.get_logger(), 'Initializing Velocity Publisher...')
         self._robot_message_publisher = self.create_publisher(
-            Twist,
+            TwistStamped,
             self._ros_config.velocity_topic,
             self._ros_config.max_messages
         )
@@ -175,7 +175,7 @@ class NavigationServer(Node):
     #----------------------------------------------------------------------------------
     def execute_callback(self, goal_handle: ServerGoalHandle):
         """Executes upon receiving a goal request after approved by goal callback."""
-
+        
         # Local variables
         result_msg = NavigationRequest.Result()
         delay_s = 1.0 / float(self._execute_rate)  # Set the rate 
@@ -195,118 +195,125 @@ class NavigationServer(Node):
             self._reset_server_to_idle()
         #----------------------------
 
-        # Initial checks before starting execution
-    
-        if self._get_server_state() == NavigationState.EMERGENCY_STOP:
-            goal_handle.abort()
-            final_text="Navigation server is not ready to execute goals."
-            _cleanup_execution(NavigationState.EMERGENCY_STOP, final_text)
-            return result_msg
-
-        self._active_goal_handle = goal_handle # Store the active goal handle for use in other methods
-
-        # ----- For navigation, plan the path -----
-        if goal.request_type == NavRequest.NAVIGATE:
-            self._set_server_state(NavigationState.PLANNING)
-            #----- Wait for map to be available -----
-            snapshot = self._wait_for_map(goal_handle, self._map_timeout_s)
-
-            #----- Abort if map is not available -----
-            if snapshot is None:
+        try:
+            # Initial checks before starting execution
+        
+            if self._get_server_state() == NavigationState.EMERGENCY_STOP:
                 goal_handle.abort()
-                self._set_server_state(NavigationState.FAILED)
-                final_text="Map not available, navigation aborted."
-                _cleanup_execution(NavigationState.FAILED, final_text)
+                final_text="Navigation server is not ready to execute goals."
+                _cleanup_execution(NavigationState.EMERGENCY_STOP, final_text)
                 return result_msg
-            
-            else:
-                # ----- Proceed with navigation logic -----
 
-                # -- Build the costmap --
-                costmap = self._build_inflated_costmap_from_snapshot(
-                    snap=snapshot,
-                    robot_model=self._robot_model,
-                    threshold=self._map_policy.occupancy_threshold
-                )
-                # -- Get the robot pose --
-                pose = self._wait_for_pose(goal_handle, self._pose_timeout_s)
-                # -- Abort if robot pose is not available --
-                if pose is None:
+            self._active_goal_handle = goal_handle # Store the active goal handle for use in other methods
+
+            # ----- For navigation, plan the path -----
+            if goal.request_type == NavRequest.NAVIGATE:
+                self._set_server_state(NavigationState.PLANNING)
+                #----- Wait for map to be available -----
+                snapshot = self._wait_for_map(goal_handle, self._map_timeout_s)
+
+                #----- Abort if map is not available -----
+                if snapshot is None:
                     goal_handle.abort()
                     self._set_server_state(NavigationState.FAILED)
-                    final_text="Robot pose not available, navigation aborted."
-                    _cleanup_execution(NavigationState.FAILED,final_text)
+                    final_text="Map not available, navigation aborted."
+                    _cleanup_execution(NavigationState.FAILED, final_text)
                     return result_msg
                 
-                # -- Convert robot pose to grid coordinates --
-                grid_x, grid_y = snap_world_to_grid(
-                    pose.transform.translation.x,
-                    pose.transform.translation.y,
-                    snapshot
-                )
-                # -- Get the goal destination in world coordinates --
-                dest_x, dest_y = snap_world_to_grid(
-                    goal.position.transform.translation.x,
-                    goal.position.transform.translation.y,
-                    snapshot
-                )
-                # -- Generate the path plan --
-                self._planner.set_grid(costmap)
-                grid_plan = self._planner.plan(
-                    (grid_x, grid_y), 
-                    (dest_x, dest_y)
-                )
-                # -- Convert plan to world coordinates --
-                world_plan = self._convert_plan_to_world(grid_plan, snapshot)
+                else:
+                    # ----- Proceed with navigation logic -----
 
-                # -- Start the path follower --
-                with self._follower_lock:
-                    self._follower.start(world_plan)
+                    # -- Build the costmap --
+                    costmap = self._build_inflated_costmap_from_snapshot(
+                        snap=snapshot,
+                        robot_model=self._robot_model,
+                        threshold=self._map_policy.occupancy_threshold
+                    )
+                    # -- Get the robot pose --
+                    pose = self._wait_for_pose(goal_handle, self._pose_timeout_s)
+                    # -- Abort if robot pose is not available --
+                    if pose is None:
+                        goal_handle.abort()
+                        self._set_server_state(NavigationState.FAILED)
+                        final_text="Robot pose not available, navigation aborted."
+                        _cleanup_execution(NavigationState.FAILED,final_text)
+                        return result_msg
+                    
+                    # -- Convert robot pose to grid coordinates --
+                    grid_x, grid_y = snap_world_to_grid(
+                        pose.transform.translation.x,
+                        pose.transform.translation.y,
+                        snapshot
+                    )
+                    # -- Get the goal destination in world coordinates --
+                    dest_x, dest_y = snap_world_to_grid(
+                        goal.position.transform.translation.x,
+                        goal.position.transform.translation.y,
+                        snapshot
+                    )
+                    # -- Generate the path plan --
+                    self._planner.set_grid(costmap)
+                    grid_plan = self._planner.plan(
+                        (grid_x, grid_y), 
+                        (dest_x, dest_y)
+                    )
+                    print(f"Grid plan: {grid_plan}\n")
+                    # -- Convert plan to world coordinates --
+                    world_plan = self._convert_plan_to_world(grid_plan, snapshot)
+                    print(f"World plan: {world_plan}")
 
-                # -- Set state to NAVIGATING --
-                self._set_server_state(NavigationState.NAVIGATING)
-                    # ----------------------------------------
+                    # -- Start the path follower --
+                    with self._follower_lock:
+                        self._follower.start(world_plan)
 
-        # ----- Main execution loop -----
-        while True:
+                    # -- Set state to NAVIGATING --
+                    self._set_server_state(NavigationState.NAVIGATING)
+                        # ----------------------------------------
+            print(f"\n *** Planning completed... beginning Navigation")
+            # ----- Main execution loop -----
+            while True:
 
-            # ----- Check for Emergency Stop -----
-            if self._get_server_state() == NavigationState.EMERGENCY_STOP:
-                final_state = NavigationState.EMERGENCY_STOP
-                final_text = "Emergency Stop"
-                goal_handle.abort()
-                break
+                # ----- Check for Emergency Stop -----
+                if self._get_server_state() == NavigationState.EMERGENCY_STOP:
+                    final_state = NavigationState.EMERGENCY_STOP
+                    final_text = "Emergency Stop"
+                    goal_handle.abort()
+                    break
 
-            #  ----- Check if the goal is canceled -----
-            if goal_handle.is_cancel_requested:
-                self._set_server_state(NavigationState.CANCELED)
-                final_state = NavigationState.CANCELED
-                goal_handle.canceled()
-                final_text="Navigation canceled by user."
-                break
+                #  ----- Check if the goal is canceled -----
+                if goal_handle.is_cancel_requested:
+                    self._set_server_state(NavigationState.CANCELED)
+                    final_state = NavigationState.CANCELED
+                    goal_handle.canceled()
+                    final_text="Navigation canceled by user."
+                    break
+                
+                # ----- Chceck if navigation goal failed -----
+                if self._get_server_state() == NavigationState.FAILED:
+                    final_state = NavigationState.FAILED
+                    goal_handle.abort()
+                    final_text="Navigation failed."
+                    break
+                
+                # ----- Check if navigation goal succeeded -----
+                if self._get_server_state() == NavigationState.REACHED_GOAL:
+                    final_state = NavigationState.REACHED_GOAL
+                    goal_handle.succeed()
+                    final_text="Navigation succeeded."
+                    break
+
+                self._nav_execute()
+                time.sleep(delay_s)
+                
+
             
-            # ----- Chceck if navigation goal failed -----
-            if self._get_server_state() == NavigationState.FAILED:
-                final_state = NavigationState.FAILED
-                goal_handle.abort()
-                final_text="Navigation failed."
-                break
-            
-            # ----- Check if navigation goal succeeded -----
-            if self._get_server_state() == NavigationState.REACHED_GOAL:
-                final_state = NavigationState.REACHED_GOAL
-                goal_handle.succeed()
-                final_text="Navigation succeeded."
-                break
-
-            self._nav_execute()
-            time.sleep(delay_s)
-            
-
-        
-        _cleanup_execution(final_state, final_text)
-        return result_msg
-
+            _cleanup_execution(final_state, final_text)
+            return result_msg
+        except Exception as e:
+            self._last_log_event = log_error(self.get_logger(),e, self.execute_callback.__qualname__, "Error while executing goal",self._last_log_event)
+            goal_handle.abort()
+            _cleanup_execution(NavigationState.FAILED, "A error occured while trying to navigate")
+            return result_msg
     
     #----------------------------------------------------------------------------------
     def _nav_execute(self):
@@ -342,9 +349,10 @@ class NavigationServer(Node):
                     yaw = quaternion_to_yaw(pose.transform.rotation)
 
                     # -- Tick the follower --
+                    print(f"\nNavigating:\n\tx: {x}, y: {y}, yaw: {yaw}")
                     cmd = None
                     if self._get_server_state() == NavigationState.NAVIGATING:
-                        
+                        print(f"\nTicking the follower...\n")
                         with self._follower_lock:
                             cmd = self._follower.tick(x, y, yaw)
                     
@@ -493,7 +501,7 @@ class NavigationServer(Node):
         self._active_goal_handle.publish_feedback(feedback_msg)
 
     #----------------------------------------------------------------------------------
-    def _publish_velocity_command(self, cmd: Twist):
+    def _publish_velocity_command(self, cmd: TwistStamped):
         """Publish a velocity command to the robot."""
         self._robot_message_publisher.publish(cmd)
 
@@ -503,7 +511,7 @@ class NavigationServer(Node):
 
         self._set_server_state(NavigationState.IDLE)
         self._follower.stop()
-        stop_cmd = Twist()
+        stop_cmd = TwistStamped()
         self._publish_velocity_command(stop_cmd)
 
     #----------------------------------------------------------------------------------
