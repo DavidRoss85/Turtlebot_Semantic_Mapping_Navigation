@@ -1,4 +1,7 @@
 #!/bin/bash
+
+#This script is outdated from an older version... Needs updating
+
 echo "Launching live demo..."
 
 # Resolve script directory

@@ -1,7 +1,7 @@
 #!/bin/bash
 echo "Starting sequence..."
 echo "Updating permissions..."
-chmod +x ./launch_robosync_node.sh 
+chmod +x ./launch_robosync_node.sh ./launch_executor_node.sh
 chmod +x ./launch_detection_node.sh ./launch_location_node.sh ./launch_map_node.sh 
 chmod +x ./launch_map_viewer.sh ./launch_temp_viewer.sh ./launch_navigation_server.sh
 sleep 3
@@ -12,6 +12,8 @@ gnome-terminal --working-directory="$PWD" -- bash -c "./launch_turtlebot_simulat
 echo "Waiting for simulation to start..."
 sleep 15
 
+echo "Launching Executor node in separate terminal..."
+gnome-terminal --working-directory="$PWD" -- bash -c "./launch_executor_node.sh; exec bash"
 echo "Launching Robosync node in separate terminal..."
 gnome-terminal --working-directory="$PWD" -- bash -c "./launch_robosync_node.sh; exec bash"
 echo "Launching Detection Node..."
