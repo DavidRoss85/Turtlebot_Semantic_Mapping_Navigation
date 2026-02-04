@@ -8,7 +8,7 @@ import threading
 import rclpy
 from rclpy.node import Node
 from tf2_ros import Buffer, TransformListener
-from geometry_msgs.msg import TransformStamped, TwistStamped
+from geometry_msgs.msg import PoseStamped, TwistStamped, TransformStamped
 from rclpy.action import(
     ActionServer,
     CancelResponse,
@@ -29,31 +29,11 @@ from robot_common.logging import log_error, log_info
 from robot_common.robot_model import RobotModel
 from robot_common.geometry import quaternion_to_yaw, snap_grid_to_world, snap_world_to_grid
 
+from custom_navigator.config.nav_configs import NavigationState, NavRequest, SERVER_STATES_TO_PROVIDE_FEEDBACK
 from custom_navigator.config.ros_presets import STD_CFG as ROS_CONFIG
 from robot_common.robot_presets import TB4_MODEL as ROBOT_MODEL
 from custom_navigator.config.map_presets import DEFAULT_MAP_POLICY as MAP_POLICY
 
-#These enums need to be moved later to a separate file
-class NavRequest(int, Enum):
-    PAUSE = 0
-    ALIGN = 1
-    NAVIGATE = 2
-    SEARCH = 3
-    APPROACH = 4
-    CANCEL = 5
-
-class NavigationState(int, Enum):
-    IDLE = 0
-    ALIGNING = 1
-    PLANNING = 2
-    NAVIGATING = 3
-    SEARCHING = 4
-    APPROACHING = 5
-    REACHED_GOAL = 6
-    CANCELED = 7
-    FAILED = 8
-    PAUSED = 9
-    EMERGENCY_STOP = 10
 
 class NavigationServer(Node):
 
@@ -76,17 +56,10 @@ class NavigationServer(Node):
         
         self._active_goal_handle: ServerGoalHandle = None  # Currently active goal handle
         self._active_feedback: NavigationRequest.Feedback = None  # Currently active feedback message
-        self._robot_pose: TransformStamped = None
+        self._robot_pose: PoseStamped = None
 
         # List of states where feedback is published: (Move this into config later)
-        self._feedback_state_list = {            
-            NavigationState.ALIGNING,
-            NavigationState.PLANNING,
-            NavigationState.NAVIGATING,
-            NavigationState.SEARCHING,
-            NavigationState.APPROACHING,
-            NavigationState.PAUSED
-          }  
+        self._feedback_state_list = SERVER_STATES_TO_PROVIDE_FEEDBACK
 
         self._goal_callback_lock = threading.Lock()
         self._sm_lock = threading.Lock() # State machine lock
@@ -241,14 +214,14 @@ class NavigationServer(Node):
                     
                     # -- Convert robot pose to grid coordinates --
                     grid_x, grid_y = snap_world_to_grid(
-                        pose.transform.translation.x,
-                        pose.transform.translation.y,
+                        pose.pose.position.x,
+                        pose.pose.position.y,
                         snapshot
                     )
                     # -- Get the goal destination in world coordinates --
                     dest_x, dest_y = snap_world_to_grid(
-                        goal.position.transform.translation.x,
-                        goal.position.transform.translation.y,
+                        goal.position.pose.position.x,
+                        goal.position.pose.position.y,
                         snapshot
                     )
                     # -- Generate the path plan --
@@ -260,7 +233,7 @@ class NavigationServer(Node):
                     
                     # -- Convert plan to world coordinates --
                     world_plan = self._convert_plan_to_world(grid_plan, snapshot)
-                    
+                    print(f"World Plan: {world_plan}")
                     # -- Start the path follower --
                     with self._follower_lock:
                         self._follower.start(world_plan)
@@ -346,11 +319,11 @@ class NavigationServer(Node):
                 feedback_msg.feedback_text = 'Navigating to goal...'
 
                 # -- Update the path follower with current robot pose --
-                pose = self._get_robot_pose()
-                if pose is not None:
-                    x = pose.transform.translation.x
-                    y = pose.transform.translation.y
-                    yaw = quaternion_to_yaw(pose.transform.rotation)
+                robot_pose = self._get_robot_pose()
+                if robot_pose is not None:
+                    x = robot_pose.pose.position.x
+                    y = robot_pose.pose.position.y
+                    yaw = quaternion_to_yaw(robot_pose.pose.orientation)
 
                     # -- Tick the follower --
                     cmd = None
@@ -421,7 +394,7 @@ class NavigationServer(Node):
             time.sleep(self._map_update_interval)
     
     #----------------------------------------------------------------------------------
-    def _wait_for_pose(self, goal_handle: ServerGoalHandle, timeout_s: float = 10.0) -> Optional[TransformStamped]:
+    def _wait_for_pose(self, goal_handle: ServerGoalHandle, timeout_s: float = 10.0) -> Optional[PoseStamped]:
         """Wait for the robot pose to be available."""
         start = time.time()
 
@@ -471,10 +444,15 @@ class NavigationServer(Node):
         return world_path
     
     #----------------------------------------------------------------------------------
-    def _get_robot_pose(self)-> TransformStamped:
+    def _get_robot_pose(self)-> PoseStamped:
         try:
             # Get transform map → base_link
-            return self._tf_buffer.lookup_transform('map', 'base_link', rclpy.time.Time())
+            transform:TransformStamped = self._tf_buffer.lookup_transform('map', 'base_link', rclpy.time.Time())
+            # There is no real reason to do this... it's all just semantics...
+            pose = PoseStamped()
+            pose.pose.position = transform.transform.translation
+            pose.pose.orientation = transform.transform.rotation
+            return pose
         except Exception as e:
             self._last_log_event = log_error(
                 self.get_logger(),
