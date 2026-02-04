@@ -70,6 +70,18 @@ class PathFollower:
             if self._i >= len(self._plan):
                 self._reached_goal = True
                 self._active = False
+
+    #--------------------------------------------------------------------------------
+    def get_progress_percent(self)->int:
+        """
+        Returns progress of navigation in percentage
+        
+        """
+        if not self._active or len(self._plan)==0:
+            return 0
+        progress = int(float((self._i+1)/len(self._plan))*100)
+        return progress
+        
     #--------------------------------------------------------------------------------
     def tick(self, x: float, y: float, yaw: float) -> Optional[TwistStamped]:
         """

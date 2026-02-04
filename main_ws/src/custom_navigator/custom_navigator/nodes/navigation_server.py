@@ -324,7 +324,8 @@ class NavigationServer(Node):
             case NavigationState.NAVIGATING:
                 # -- Update feedback during navigation --
                 feedback_msg.state = NavigationState.NAVIGATING
-                feedback_msg.feedback_text = 'Navigating to goal...'
+                feedback_msg.feedback_text = f'Navigating to goal...'
+                feedback_msg.progress = self._follower.get_progress_percent()
 
                 # -- Update the path follower with current robot pose --
                 robot_pose = self._get_robot_pose()
@@ -380,6 +381,7 @@ class NavigationServer(Node):
         if self._active_feedback is not None:
             self._active_feedback.state = feedback_msg.state
             self._active_feedback.feedback_text = feedback_msg.feedback_text
+            self._active_feedback.progress = feedback_msg.progress
     #----------------------------------------------------------------------------------
     def _wait_for_map(self, goal_handle: ServerGoalHandle, timeout_s: float = 2.0) -> Optional[NavGridSnapshot]:
         """Wait for the map to be available in the map cache."""
@@ -487,6 +489,7 @@ class NavigationServer(Node):
         feedback_msg = NavigationRequest.Feedback()
         feedback_msg.state = self._get_server_state()
         feedback_msg.feedback_text = f'{self._active_feedback.feedback_text}' if self._active_feedback else '-'
+        feedback_msg.progress = self._active_feedback.progress
         self._active_goal_handle.publish_feedback(feedback_msg)
 
     #----------------------------------------------------------------------------------

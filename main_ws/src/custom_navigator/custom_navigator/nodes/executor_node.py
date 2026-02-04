@@ -113,8 +113,9 @@ class ExecutorNode(Node):
         state = feedback.state
         feedback_text = feedback.feedback_text
         position: PoseStamped = feedback.position
+        progress = feedback.progress
         # print for now.... Do something later
-        print (feedback_text)
+        print(f"\r x Progress: {feedback.progress}%\t", end="", flush=True)
 
     #------------------------------------------------------------------------------
     def _nav_response_callback(self, future:NavigationRequest):
@@ -140,7 +141,8 @@ class ExecutorNode(Node):
         """Handle the final result"""
         result = future.result().result
         # Print for now... do something later:
-        print(result)
+        print(f"\n")
+        print(result.result_text)
     #-----------------------------------------------------------------------------
     # def move_to_pose(self, x, y, yaw):
     #     """Moves the robot to the specified pose (x, y, yaw)"""

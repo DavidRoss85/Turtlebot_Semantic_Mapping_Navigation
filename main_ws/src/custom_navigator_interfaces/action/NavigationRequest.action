@@ -11,5 +11,6 @@ geometry_msgs/PoseStamped position
 ---
 # Feedback
 int8 state
+int8 progress
 string feedback_text
 geometry_msgs/PoseStamped position
