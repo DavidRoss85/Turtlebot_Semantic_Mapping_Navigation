@@ -7,9 +7,9 @@ from robot_common.geometry import wrap_to_pi, clamp
 class PathFollower:
     def __init__(
         self,
-        max_lin: float = 0.20,
+        max_lin: float = 1.0,
         max_ang: float = 0.80,
-        wp_tol: float = 0.10,
+        wp_tol: float = 1.0,
         goal_tol: float = 0.15,
         yaw_tol: float = 0.20,   # ~11 degrees
         k_lin: float = 0.8,
