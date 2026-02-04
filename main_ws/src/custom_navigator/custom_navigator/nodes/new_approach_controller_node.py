@@ -7,7 +7,7 @@ import rclpy
 from rclpy.node import Node
 from geometry_msgs.msg import TwistStamped
 from std_msgs.msg import String
-from .navigator_node import NavigatorSetupNode
+from .executor_node import NavigatorSetupNode
 
 from object_location_interfaces.msg import(
 
