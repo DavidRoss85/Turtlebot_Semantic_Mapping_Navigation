@@ -230,6 +230,14 @@ class NavigationServer(Node):
                         (grid_x, grid_y), 
                         (dest_x, dest_y)
                     )
+
+                    # -- Check for valid path. Abort if no path --
+                    if grid_plan is None or len(grid_plan)==0:
+                        goal_handle.abort()
+                        self._set_server_state(NavigationState.FAILED)
+                        final_text = "No path to goal. Aborting..."
+                        _cleanup_execution(NavigationState.FAILED,final_text)
+                        return result_msg
                     
                     # -- Convert plan to world coordinates --
                     world_plan = self._convert_plan_to_world(grid_plan, snapshot)
